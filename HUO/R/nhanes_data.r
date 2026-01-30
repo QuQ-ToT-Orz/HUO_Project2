@@ -1,0 +1,72 @@
+#' NHANES 2011-2014 Data Processing Functions
+#'
+#' @description
+#' The HUO package includes functions for processing NHANES 2011-2014 accelerometer
+#' and covariate data (waves G and H). These functions are adapted from the rnhanesdata
+#' package structure but optimized for the newer MIMS data format and study design.
+#'
+#' @details
+#' Key differences from earlier NHANES waves (2003-2006):
+#' 
+#' \itemize{
+#'   \item{Data Format: Uses MIMS units instead of activity counts}
+#'   \item{Wear Detection: Uses algorithmic prediction with 4 states (wake, sleep, non-wear, unknown)}
+#'   \item{Study Period: 2011-2012 (wave G) and 2013-2014 (wave H)}
+#'   \item{Mortality Data: Uses 2019 release with updated format}
+#' }
+#'
+#' The main processing functions include:
+#' 
+#' \itemize{
+#'   \item{\code{\link{process_mort}}: Process mortality linkage data}
+#'   \item{\code{\link{process_covar}}: Extract and merge covariate data}
+#'   \item{\code{\link{processNHANESAccelerometer}}: Process MIMS accelerometer data}
+#'   \item{\code{\link{check_valid_wake_days}}: Validate accelerometer days}
+#'   \item{\code{\link{extract_nhanes_data}}: Extract laboratory data}
+#' }
+#'
+#' @section Data Structure:
+#' 
+#' The accelerometer data uses a different structure than earlier waves:
+#' 
+#' \itemize{
+#'   \item{PAXMTSM: MIMS values (activity intensity)}
+#'   \item{PAXPREDM: Predicted wear status (1=wake, 2=sleep, 3=non-wear, 4=unknown)}
+#'   \item{PAXTRANM: Transition indicators}
+#'   \item{PAXQFM: Quality control flags}
+#' }
+#'
+#' @section Example Workflow:
+#' 
+#' \preformatted{
+#' # Load and process accelerometer data
+#' library(HUO)
+#' 
+#' # Process mortality data
+#' mort_data <- process_mort(waves = c("G", "H"), 
+#'                          mort_release_yr = 2019,
+#'                          localpath = "path/to/mort/data")
+#' 
+#' # Process covariate data
+#' covar_data <- process_covar(waves = c("G", "H"),
+#'                            localpath = "path/to/covar/data")
+#' 
+#' # Process accelerometer data (requires raw MIMS files)
+#' # accel_data <- processNHANESAccelerometer(PAXMIN_data)
+#' 
+#' # Check for valid days
+#' # valid_indices <- check_valid_wake_days(accel_data$accel, accel_data$flags)
+#' }
+#'
+#' @references
+#' 
+#' \itemize{
+#'   \item{Leroux A, et al. Organizing and Analyzing the Activity Data in NHANES. 
+#'         Statistics in Biosciences. 2019.}
+#'   \item{John D, et al. Biomechanical examination of the 'plateau phenomenon' 
+#'         in ActiGraph vertical activity counts. Physiological Measurement. 2012.}
+#' }
+#'
+#' @name nhanes-data
+#' @aliases nhanes
+NULL

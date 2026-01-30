@@ -1,0 +1,26 @@
+Package: HUO
+Type: Package
+Title: Hawkes-based Unfolding of Observed human behavior
+Version: 1.0.1
+Date: 2025-12-31
+Authors@R: 
+  c(person(given = "Xin",
+           family = "Zheng",
+           role = c("aut", "cre", "cph"),
+           email = "xin.ouo.zheng@gmail.com"))
+Depends: R (>= 4.2.0)
+Imports: TMB (>= 1.9.0), Matrix, ggplot2 (>= 3.4.3), dplyr (>= 1.0.3), gridExtra (>= 2.3), readr (>= 1.3.1), haven (>= 1.1.0), tidyr (>= 1.0.0), foreign, data.table, nhanesA, stats, utils, magrittr
+LinkingTo: TMB, RcppEigen
+Description: Fits univariate Hawkes processes with single or multiple independent
+    series. Includes functions for processing NHANES accelerometry data and
+    mortality outcomes. Provides goodness-of-fit diagnostics and visualization tools.
+License: GPL (>= 3)
+Encoding: UTF-8
+RoxygenNote: 7.3.3
+Suggests: testthat (>= 3.1.10), rmarkdown, parallel, hawkesbow, covr, knitr
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+NeedsCompilation: yes
+Packaged: 2025-12-31 18:29:22 UTC; xin
+Author: Xin Zheng [aut, cre, cph]
+Maintainer: Xin Zheng <xin.ouo.zheng@gmail.com>
