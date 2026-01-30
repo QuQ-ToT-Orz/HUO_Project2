@@ -244,7 +244,63 @@ par(mfrow = c(1, 3))
   abline(lm(mu_star_raw ~ mu_mle_marked, data =         
   analysis_df), col = "blue")                    
                                                  
-  par(mfrow = c(1, 1))    
+  par(mfrow = c(1, 1))
+
+#### 4b Boxplots: Parameter Distributions Across Methods ####
+
+# Reshape data for n estimates
+n_long <- analysis_df %>%
+  select(SEQN, n_raw, n_adj, n_marks, n_adj_marks, n_mle_unmarked, n_mle_marked) %>%
+  pivot_longer(cols = -SEQN, names_to = "method", values_to = "n") %>%
+  mutate(method = factor(method,
+    levels = c("n_raw", "n_adj", "n_marks", "n_adj_marks", "n_mle_unmarked", "n_mle_marked"),
+    labels = c("Disp\n(raw)", "Disp\n(adj)", "Disp\n(marks)", "Disp\n(adj+marks)", "MLE\n(unmarked)", "MLE\n(marked)")))
+
+# Reshape data for mu estimates
+mu_long <- analysis_df %>%
+  select(SEQN, mu_star_raw, mu_star_adj, mu_star_marks, mu_star_adj_marks, mu_mle_unmarked, mu_mle_marked) %>%
+  pivot_longer(cols = -SEQN, names_to = "method", values_to = "mu") %>%
+  mutate(method = factor(method,
+    levels = c("mu_star_raw", "mu_star_adj", "mu_star_marks", "mu_star_adj_marks", "mu_mle_unmarked", "mu_mle_marked"),
+    labels = c("Disp\n(raw)", "Disp\n(adj)", "Disp\n(marks)", "Disp\n(adj+marks)", "MLE\n(unmarked)", "MLE\n(marked)")))
+
+# Reshape data for lambda estimates
+lambda_long <- analysis_df %>%
+  select(SEQN, lambda_count, lambda_marks, lambda_mle_unmarked, lambda_mle_marked) %>%
+  pivot_longer(cols = -SEQN, names_to = "method", values_to = "lambda") %>%
+  mutate(method = factor(method,
+    levels = c("lambda_count", "lambda_marks", "lambda_mle_unmarked", "lambda_mle_marked"),
+    labels = c("Count-based", "Mark-based", "MLE\n(unmarked)", "MLE\n(marked)")))
+
+# Boxplot for n estimates
+p_n <- ggplot(n_long, aes(x = method, y = n, fill = method)) +
+  geom_boxplot(alpha = 0.7, outlier.size = 0.8) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Branching Ratio (n) Across Methods", x = "", y = "n") +
+  theme_minimal() +
+  theme(legend.position = "none", axis.text.x = element_text(size = 9))
+
+# Boxplot for mu estimates
+p_mu <- ggplot(mu_long, aes(x = method, y = mu, fill = method)) +
+  geom_boxplot(alpha = 0.7, outlier.size = 0.8) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Immigration Rate (mu) Across Methods", x = "", y = "mu (events/hour)") +
+  theme_minimal() +
+  theme(legend.position = "none", axis.text.x = element_text(size = 9))
+
+# Boxplot for lambda estimates
+p_lambda <- ggplot(lambda_long, aes(x = method, y = lambda, fill = method)) +
+  geom_boxplot(alpha = 0.7, outlier.size = 0.8) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Event Rate (lambda) Across Methods", x = "", y = "lambda (events/hour)") +
+  theme_minimal() +
+  theme(legend.position = "none", axis.text.x = element_text(size = 9))
+
+# Display plots
+print(p_n)
+print(p_mu)
+print(p_lambda)
+
 
 #### 5 Night Regularity Exploratory Analysis ####
  par(mfrow = c(1, 3))                                          
