@@ -1,6 +1,6 @@
 # Mortality Risk Reflects Temporal Clustering of Physical Activity, Rather Than Frequency or Intensity: A Dispersion Index Approach Grounded in Hawkes Process Theory
 
-[![R-CMD-check](https://github.com/QuQ-ToT-Orz/Project2/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/QuQ-ToT-Orz/Project2/actions/workflows/R-CMD-check.yaml)
+[![R-CMD-check](https://github.com/QuQ-ToT-Orz/Project2/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/QuQ-ToT-Orz/Project2/actions/workflows/R-CMD-check.yaml) [![DOI](https://zenodo.org/badge/1144577922.svg)](https://doi.org/10.5281/zenodo.18445108)
 
 Analysis of physical activity temporal patterns using Hawkes processes and dispersion indices from NHANES accelerometer data, with application to all-cause mortality prediction.
 
