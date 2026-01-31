@@ -11,7 +11,7 @@ library(purrr)
 library(survey)
 
 #### 1 Load Data ####
-dir_path <- "../2025/data/"
+dir_path <- "./data/"
 
 load(file = paste0(dir_path, "dispersion/dispersion_df_old.RData"))
 load(file = paste0(dir_path, "dispersion/dispersion_summary_old.RData"))
@@ -62,8 +62,8 @@ sleep_event_summary <- event_analysis %>%
 source("./function_process.R")
 
 # Load marked MLE
-mle_marked_file <- paste0("../2025/data/hawkes/", "fits_marked_all_old.RData")
-mle_marked_file <- paste0("../2025/data/hawkes/", "fits_marked_all_new.RData")
+mle_marked_file <- paste0("./data/hawkes/", "fits_marked_all_old.RData")
+mle_marked_file <- paste0("./data/hawkes/", "fits_marked_all_new.RData")
 load(mle_marked_file)
 
 mle_marked_df <- process_fits_data(fits_list_all) %>%
@@ -75,7 +75,7 @@ mle_marked_df <- process_fits_data(fits_list_all) %>%
   select(SEQN, mu_mle_marked, n_mle_marked)
 
 # Load unmarked MLE
-mle_unmarked_file <- paste0("../2025/data/hawkes/", "fits_unmarked_all_old.RData")
+mle_unmarked_file <- paste0("./data/hawkes/", "fits_unmarked_all_old.RData")
 mle_unmarked_file <- paste0("../2025/data/hawkes/", "fits_unmarked_all_new.RData")
 load(mle_unmarked_file)
 
