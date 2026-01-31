@@ -108,8 +108,12 @@ analysis_df <- data_analysis %>%
     lambda_mle_unmarked = mu_mle_unmarked / (1 - n_mle_unmarked)
   )
 
- analysis_df <- analysis_df %>%                                                  
-    mutate(Peak30 = sqrt(Peak30)) 
+ analysis_df <- analysis_df %>%
+    mutate(
+      TAC = sqrt(TAC),
+      MVPA = sqrt(MVPA),
+      Peak30 = sqrt(Peak30)
+    ) 
   cor_vars <- c("n_raw", "n_adj", "n_marks", "n_adj_marks",
   "n_mle_unmarked", "n_mle_marked",
 
