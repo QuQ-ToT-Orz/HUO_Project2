@@ -161,14 +161,21 @@ basic_covars <- "+ Age + Gender + Race + WT"
 full_covars <- "+ Age + Gender + Race + WT + Peak30 + BMI_cat + SmokeCigs + DrinkStatus + EducationAdult + MobilityProblem + Diabetes + CHF + CHD + Stroke + Cancer"
 
 # Function to extract model results
-extract_results <- function(model, var_name) {
+extract_results <- function(model, var_name, data) {
   coefs <- summary(model)$coefficients
-  # Use column indices: coef=1, robust se=4, Pr(>|z|)=6
-  hr <- exp(coefs[var_name, 1])
-  se <- coefs[var_name, 4]  # robust se
-  ci_low <- exp(coefs[var_name, 1] - 1.96 * se)
-  ci_high <- exp(coefs[var_name, 1] + 1.96 * se)
-  p <- coefs[var_name, 6]   # Pr(>|z|)
+  
+  beta <- coefs[var_name, 1]
+  se <- coefs[var_name, 4]  # robust SE
+  p <- coefs[var_name, 6]
+  
+  # Get SD for proper scaling
+  sd_var <- sd(data[[var_name]], na.rm = TRUE)
+  
+  # HR per SD (not per 1 unit!)
+  hr <- exp(beta * sd_var)
+  ci_low <- exp((beta - 1.96 * se) * sd_var)
+  ci_high <- exp((beta + 1.96 * se) * sd_var)
+  
   list(hr = hr, ci_low = ci_low, ci_high = ci_high, p = p)
 }
 
@@ -180,25 +187,26 @@ format_hr <- function(hr, ci_low, ci_high, p) {
 
 # Run all models and collect results
 results_list <- lapply(n_versions, function(spec) {
-  # Model 1: Basic (no Peak30)
+  # Model 1
   f1 <- as.formula(paste0("Surv(surv_time, event) ~ ", spec$n, " + ", spec$lambda, basic_covars))
   m1 <- svycoxph(f1, design = survey_design)
-  r1_n <- extract_results(m1, spec$n)
-  r1_lambda <- extract_results(m1, spec$lambda)
-
-  # Model 2: Full (with Peak30)
+  
+  # Pass data to extract_results for SD calculation
+  r1_n <- extract_results(m1, spec$n, analysis_df)
+  r1_lambda <- extract_results(m1, spec$lambda, analysis_df)
+  
+  # Model 2
   f2 <- as.formula(paste0("Surv(surv_time, event) ~ ", spec$n, " + ", spec$lambda, full_covars))
   m2 <- svycoxph(f2, design = survey_design)
-  r2_n <- extract_results(m2, spec$n)
-  r2_lambda <- extract_results(m2, spec$lambda)
-  r2_peak30 <- extract_results(m2, "Peak30")
-
+  
+  r2_n <- extract_results(m2, spec$n, analysis_df)
+  r2_lambda <- extract_results(m2, spec$lambda, analysis_df)
+  r2_peak30 <- extract_results(m2, "Peak30", analysis_df)
+  
   data.frame(
     Method = spec$label,
-    # Model 1
     n_M1 = format_hr(r1_n$hr, r1_n$ci_low, r1_n$ci_high, r1_n$p),
     lambda_M1 = format_hr(r1_lambda$hr, r1_lambda$ci_low, r1_lambda$ci_high, r1_lambda$p),
-    # Model 2
     n_M2 = format_hr(r2_n$hr, r2_n$ci_low, r2_n$ci_high, r2_n$p),
     lambda_M2 = format_hr(r2_lambda$hr, r2_lambda$ci_low, r2_lambda$ci_high, r2_lambda$p),
     Peak30_M2 = format_hr(r2_peak30$hr, r2_peak30$ci_low, r2_peak30$ci_high, r2_peak30$p)
