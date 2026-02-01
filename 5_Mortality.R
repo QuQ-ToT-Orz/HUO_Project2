@@ -76,7 +76,7 @@ mle_marked_df <- process_fits_data(fits_list_all) %>%
 
 # Load unmarked MLE
 mle_unmarked_file <- paste0("./data/hawkes/", "fits_unmarked_all_old.RData")
-mle_unmarked_file <- paste0("../2025/data/hawkes/", "fits_unmarked_all_new.RData")
+mle_unmarked_file <- paste0("./data/hawkes/", "fits_unmarked_all_new.RData")
 load(mle_unmarked_file)
 
 mle_unmarked_df <- process_fits_data(fits_list_all) %>%
@@ -111,7 +111,6 @@ analysis_df <- data_analysis %>%
  analysis_df <- analysis_df %>%
     mutate(
       TAC = sqrt(TAC),
-      MVPA = sqrt(MVPA),
       Peak30 = sqrt(Peak30)
     ) 
   cor_vars <- c("n_raw", "n_adj", "n_marks", "n_adj_marks",
@@ -129,7 +128,6 @@ analysis_df <- data_analysis %>%
            number.cex = 0.5, tl.cex = 0.6, tl.srt = 45)
 
 #### 3 Merge with Covariates for Mortality Analysis ####
-# Standardize activity measures (continuous only)
 analysis_df <- analysis_df %>%
   mutate(
     # Survival
