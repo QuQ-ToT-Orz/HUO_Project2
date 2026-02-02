@@ -85,7 +85,7 @@ compute_dispersion_single_day <- function(day_events, circadian_rates, circadian
         mu_window = mean(circadian_rates[bin_idx]),  # window's average circadian rate (count-based)
         mu_window_marks = mean(circadian_rates_marks[bin_idx]),  # window's average circadian rate (mark-weighted)
         adj_count = raw_count / mu_window,  
-        adj_marks = raw_marks / mu_window_marks, 
+        adj_marks = raw_marks / mu_window,  # Use count-based rate to preserve intensity variation 
         .groups = "drop"
       )
 
