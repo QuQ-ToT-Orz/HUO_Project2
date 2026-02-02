@@ -2,7 +2,7 @@
 library(dplyr)
 library(gtsummary)
 #### 1. Load Data ####
-dir_path <- "../2025/data/"
+dir_path <- "./data/"
 # Load the wrist-worn accelerometer data (2011-2014)
 load(file.path(dir_path, "mims/data_analysis_new.RData"))
 data_wrist <- data_analysis
@@ -21,6 +21,27 @@ rm(Act_Analysis)
 load(file.path(dir_path, "count/Act_Analysis_old.RData"))
 Act_Analysis_hip <- Act_Analysis
 rm(Act_Analysis)
+
+# Load filtered subjects from 2_preprocessing.R
+# These contain only subjects who passed all quality control steps
+load(file.path(dir_path, "runlength/event_analysis_new.RData"))
+filtered_seqn_wrist <- unique(event_analysis$SEQN)
+rm(event_analysis)
+
+load(file.path(dir_path, "runlength/event_analysis_old.RData"))
+filtered_seqn_hip <- unique(event_analysis$SEQN)
+rm(event_analysis)
+
+# Filter demographic data to include only subjects from 2_preprocessing.R
+data_wrist <- data_wrist %>% filter(SEQN %in% filtered_seqn_wrist)
+data_hip <- data_hip %>% filter(SEQN %in% filtered_seqn_hip)
+
+# Filter activity data to match
+Act_Analysis_wrist <- Act_Analysis_wrist %>% filter(SEQN %in% filtered_seqn_wrist)
+Act_Analysis_hip <- Act_Analysis_hip %>% filter(SEQN %in% filtered_seqn_hip)
+
+cat("Wrist cohort subjects after preprocessing:", nrow(data_wrist), "\n")
+cat("Hip cohort subjects after preprocessing:", nrow(data_hip), "\n")
 
 # Aggregate activity measures from daily to subject level
 activity_summary_wrist <- Act_Analysis_wrist %>%
