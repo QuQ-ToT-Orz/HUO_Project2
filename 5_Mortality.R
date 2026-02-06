@@ -143,6 +143,7 @@ survey_design <- svydesign(
   id = ~SDMVPSU,
   strata = ~SDMVSTRA,
   weights = ~WTMEC2YR,
+  # weights = ~I(as.numeric(WTMEC2YR) / 2),
   nest = TRUE,
   data = analysis_df
 )
