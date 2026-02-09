@@ -38,5 +38,9 @@ Interpretation:
 ### Mortality (Survey Weighting)
 All population-level estimates use NHANES survey weights and account for the complex survey design (stratified cluster sampling).
 
+## Reproducibility
+
+All intermediate and final outputs from the full analysis pipeline are available in the `Output/` folder, enabling independent verification of results without re-running the computationally intensive steps (e.g., Hawkes MLE fitting).
+
 ## Citation
 [Citation to be added upon publication]
