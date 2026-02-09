@@ -13,7 +13,7 @@ This project implements a novel framework for characterizing the temporal cluste
 
 The key insight is that physical activity is not randomly distributed throughout the day but exhibits clustering behavior that may be independently associated with health outcomes.
 
-## HUO (Hawkes-based Unfolding of Observed human behavior) package
+## 火 HUO (Hawkes-based Unfolding of Observed human behavior) package
 ```r
 devtools::install_local("./HUO", force = TRUE, dependencies = TRUE)
 ```
