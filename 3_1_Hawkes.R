@@ -92,7 +92,7 @@ all_days_times_list <- list()
 all_days_marks_list <- list()
 for (day in all_days_list) {
   if (day %in% unique(daily_data$WEEKDAY)) {
-    day_data <- transform_hawkes_data(daily_data, seqn, day, data_type = "hip")
+    day_data <- transform_hawkes_data(daily_data, seqn, day, data_type = "hip", time_divisor = 10)
     all_days_times_list[[day]] <- day_data$times
     all_days_marks_list[[day]] <- day_data$marks
   }
@@ -206,7 +206,7 @@ all_days_times_list <- list()
 all_days_marks_list <- list()
 for (day in all_days_list) {
   if (day %in% unique(daily_data$WEEKDAY)) {
-    day_data <- transform_hawkes_data(daily_data, seqn, day, data_type = "wrist")
+    day_data <- transform_hawkes_data(daily_data, seqn, day, data_type = "wrist", time_divisor = 10)
     all_days_times_list[[day]] <- day_data$times
     all_days_marks_list[[day]] <- day_data$marks
   }
