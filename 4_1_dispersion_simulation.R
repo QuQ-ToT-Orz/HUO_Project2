@@ -5,7 +5,7 @@ library(tidyr)
 library(ggplot2)
 library(emhawkes)  # For proper Hawkes simulation
 
-set.seed(42)
+set.seed(67)
 
 #### 1 Copy Core Functions from 4_Dispersion_index.R ####
 
@@ -86,10 +86,12 @@ compute_dispersion_single_day <- function(day_events, circadian_rates, circadian
         adj_marks = ifelse(is.na(adj_marks), 0, adj_marks)
       )
 
-    D_raw <- var(all_windows$raw_count) / mean(all_windows$raw_count)
-    D_marks <- var(all_windows$raw_marks) / mean(all_windows$raw_marks)
-    D_adj <- var(all_windows$adj_count) / mean(all_windows$adj_count)
-    D_adj_marks <- var(all_windows$adj_marks) / mean(all_windows$adj_marks)
+    # Population variance (n denominator) for comparison against theoretical D
+    pop_var <- function(x) mean((x - mean(x))^2)
+    D_raw <- pop_var(all_windows$raw_count) / mean(all_windows$raw_count)
+    D_marks <- pop_var(all_windows$raw_marks) / mean(all_windows$raw_marks)
+    D_adj <- pop_var(all_windows$adj_count) / mean(all_windows$adj_count)
+    D_adj_marks <- pop_var(all_windows$adj_marks) / mean(all_windows$adj_marks)
 
     results[[as.character(W)]] <- data.frame(
       window_size = W, D_raw = D_raw, D_marks = D_marks, D_adj = D_adj, D_adj_marks = D_adj_marks
@@ -169,7 +171,7 @@ generate_clustered_events <- function(n_participants, n_days, base_rate,
   # lambda = mu / (1-n), so mu = lambda * (1-n)
   lambda_per_min <- base_rate / 60
   mu <- lambda_per_min * (1 - branching_n)
-  beta <- 0.5  # decay rate (per minute)
+  beta <- 0.3  # decay rate (per minute)
   alpha <- branching_n * beta  # so that n = alpha/beta
 
   # Create Hawkes specification
