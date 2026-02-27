@@ -242,7 +242,7 @@ plot_subject_flag <- function(seqn, weekday, data_type = c("wrist", "hip")) {
   )
 }
 
-plot_events <- function(Act_Analysis, seqn, weekday, event_data = NULL) {
+plot_events <- function(Act_Analysis, seqn, weekday, event_data = NULL, minute_events = NULL) {
   # Get activity data for specific subject and day
   act_day <- Act_Analysis[Act_Analysis$SEQN == seqn & Act_Analysis$WEEKDAY == weekday, ]
 
@@ -307,25 +307,25 @@ plot_events <- function(Act_Analysis, seqn, weekday, event_data = NULL) {
       )
     }
 
-    # Third panel: marked values with categories
-    if (nrow(subject_event_data) > 0) {
-      # Use same colors as categories for consistency
-      mark_colors <- category_colors[subject_event_data$categories]
+    # Third panel: minute-level active events with marks
+      minute_data <- minute_events[minute_events$SEQN == seqn & minute_events$WEEKDAY == weekday, ]
+      minute_data <- minute_data[minute_data$categories != "sedentary", ]
+
+    if (nrow(minute_data) > 0) {
+      mark_colors <- category_colors[minute_data$categories]
       mark_colors[is.na(mark_colors)] <- "gray"
 
-      # Plot original values colored by categories
-      plot(subject_event_data$start / 60, subject_event_data$original_value,
+      plot(minute_data$start / 60, minute_data$original_value,
         type = "h",
         xlim = c(0, 24),
         main = paste("Subject", seqn, "- Weekday", weekday, "- Marked Hawkes Events"),
         xlab = "Hour of Day",
-        ylab = "Original Value",
+        ylab = "Activity Value",
         col = mark_colors,
-        lwd = 2
+        lwd = 1
       )
 
-      # Add legend for categories
-      unique_categories_marked <- unique(subject_event_data$categories)
+      unique_categories_marked <- unique(minute_data$categories)
       legend_colors_marked <- category_colors[unique_categories_marked]
       legend("topright",
         legend = unique_categories_marked,

@@ -772,7 +772,7 @@ Act_Analysis_wide <- dcast(Act_Analysis_long, SEQN ~ factor(Accelerometry, level
 rm(list = c("Act_Analysis_subset"))
 
 # Define the directory and file paths
-dir_path <- "../2025/data/count/"
+dir_path <- "./data/count/"
 if (!dir.exists(dir_path)) {
   dir.create(dir_path)
 }

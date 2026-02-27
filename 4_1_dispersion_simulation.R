@@ -5,7 +5,7 @@ library(tidyr)
 library(ggplot2)
 library(emhawkes)  # For proper Hawkes simulation
 
-set.seed(67)
+set.seed(42)
 
 #### 1 Copy Core Functions from 4_Dispersion_index.R ####
 
@@ -162,7 +162,7 @@ generate_poisson_events <- function(n_participants, n_days, rate_per_hour,
 
 # Generate clustered events using emhawkes package (proper Hawkes simulation)
 generate_clustered_events <- function(n_participants, n_days, base_rate,
-                                       branching_n = 0.5, obs_start = 480, obs_end = 1320) {
+                                       branching_n = 0.6, obs_start = 480, obs_end = 1320) {
   obs_period <- obs_end - obs_start  # in minutes
 
   # Hawkes parameters (time in minutes)
@@ -171,7 +171,7 @@ generate_clustered_events <- function(n_participants, n_days, base_rate,
   # lambda = mu / (1-n), so mu = lambda * (1-n)
   lambda_per_min <- base_rate / 60
   mu <- lambda_per_min * (1 - branching_n)
-  beta <- 0.3  # decay rate (per minute)
+  beta <- 0.15  # decay rate (per minute)
   alpha <- branching_n * beta  # so that n = alpha/beta
 
   # Create Hawkes specification
@@ -265,7 +265,7 @@ cat("=== Simulation Tests for Dispersion Index Functions ===\n\n")
 n_participants <- 50
 n_days <- 7
 rate_per_hour <- 20
-window_sizes <- c(15, 30, 60, 90, 120)
+window_sizes <- c(5, 10, 15, 30, 45, 60, 90, 120)
 bin_size <- 30
 
 # Test 1: Poisson (uniform) process - expected D ≈ 1, n ≈ 0
@@ -373,7 +373,21 @@ p1 <- ggplot(all_results, aes(x = window_size, y = mean_D_raw, color = process))
   theme(legend.position = "bottom")
 
 print(p1)
+ggsave("Output/dispersion/simulation.pdf", p1, width = 12, height = 8)
 
 poisson_summary
 clustered_summary
 regular_summary
+'''
+# A tibble: 8 × 4
+  window_size mean_D_raw sd_D_raw mean_n_raw
+        <dbl>      <dbl>    <dbl>      <dbl>
+1           5       1.86    0.138      0.265
+2          10       2.58    0.260      0.375
+3          15       3.19    0.372      0.437
+4          30       4.41    0.632      0.520
+5          45       5.02    0.774      0.550
+6          60       5.46    1.06       0.566
+7          90       5.56    1.29       0.568
+8         120       6.19    1.74       0.586
+'''

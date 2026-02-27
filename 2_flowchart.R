@@ -347,10 +347,10 @@ flowchart_hip <- create_full_flowchart(
   n_missing_lab = 1976,
   n_step1_final = 2607,
   # Step 2 (2_Preprocessing.R)
-  n_after_daily_process = 2571,  # After process_daily_data()
-  n_after_spike_clean = 2571,    # After clean_events_spikes()
-  n_after_rle_filter = 2564,     # After filter_rle_data()
-  n_final = 2564                 # After intersect() alignment
+  n_after_daily_process = 2572,  # After process_daily_data()
+  n_after_spike_clean = 2572,    # After clean_events_spikes()
+  n_after_rle_filter = 2561,     # After filter_rle_data()
+  n_final = 2561                 # After intersect() alignment
 )
 
 # Wrist/MIMS data flowchart
@@ -367,10 +367,10 @@ flowchart_wrist <- create_full_flowchart(
   n_missing_lab = 932,
   n_step1_final = 3208,
   # Step 2 (2_Preprocessing.R)
-  n_after_daily_process = 3120,  # After process_daily_data()
-  n_after_spike_clean = 3120,    # After clean_events_spikes()
-  n_after_rle_filter = 3120,     # After filter_rle_data()
-  n_final = 3120                 # After intersect() alignment
+  n_after_daily_process = 3125,  # After process_daily_data()
+  n_after_spike_clean = 3125,    # After clean_events_spikes()
+  n_after_rle_filter = 3125,     # After filter_rle_data()
+  n_final = 3125                 # After intersect() alignment
 )
 
 # Display
@@ -427,6 +427,5 @@ save_flowchart <- function(flowchart, filename) {
   message("Saved: ", filename)
 }
 
-# Uncomment to save:
-# save_flowchart(flowchart_hip, "flowchart_hip.pdf")
-# save_flowchart(flowchart_wrist, "flowchart_wrist.pdf")
+save_flowchart(flowchart_hip, "flowchart_hip.pdf")
+save_flowchart(flowchart_wrist, "flowchart_wrist.pdf")

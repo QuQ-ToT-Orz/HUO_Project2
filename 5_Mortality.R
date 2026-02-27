@@ -41,22 +41,19 @@ activity_summary <- Act_Analysis %>%
   )
 
 # Extract night regularity metrics
+max_cv <- max(event_analysis$mean_sleep_cv, na.rm = TRUE)
 night_metrics <- event_analysis %>%
-  select(SEQN, days_early_activer, days_late_activer, days_consolidated_sleep) %>%
-  distinct()
+  select(SEQN, days_early_activer, days_late_activer, consolidated_sleep_days, mean_sleep_cv) %>%
+  distinct() %>%
+  mutate(mean_sleep_cv = ifelse(is.nan(mean_sleep_cv), max_cv, mean_sleep_cv))
 
 sleep_event_summary <- event_analysis %>%                     
-    mutate(SEQN = as.numeric(as.character(SEQN))) %>%  # convert factor numeric                                            
+    mutate(SEQN = as.numeric(as.character(SEQN))) %>%  
+    # convert factor numeric                                            
     group_by(SEQN, WEEKDAY) %>%                                 
-    summarise(                                                  
-      sleep_events = sum(start >= 60 & start < 300),            
-      .groups = "drop"                                          
-    ) %>%                                                       
+    summarise(sleep_events = sum(start >= 60 & start < 300), .groups = "drop")%>%                                                       
     group_by(SEQN) %>%                                          
-    summarise(                                                  
-      mean_sleep_events = mean(sleep_events, na.rm = TRUE),     
-      .groups = "drop"                                          
-    )     
+    summarise(mean_sleep_events = mean(sleep_events, na.rm = TRUE), .groups = "drop")     
 
 #### 2 Validation Against Hawkes MLE ####
 source("./function_process.R")
@@ -112,7 +109,7 @@ analysis_df <- data_analysis %>%
     mutate(
       TAC = sqrt(TAC),
       Peak30 = sqrt(Peak30)
-    ) 
+    )
   cor_vars <- c("n_raw", "n_adj", "n_marks", "n_adj_marks",
   "n_mle_unmarked", "n_mle_marked",
 
@@ -126,6 +123,12 @@ analysis_df <- data_analysis %>%
   cor_matrix <- cor(analysis_df[, cor_vars], use = "pairwise.complete.obs")
   corrplot(cor_matrix, method = "color", type = "upper", addCoef.col = "black",
            number.cex = 0.5, tl.cex = 0.6, tl.srt = 45)
+
+  pdf("Output/dispersion/variables/hip_cor.pdf", width = 12, height = 10)
+  pdf("Output/dispersion/variables/wrist_cor.pdf", width = 12, height = 10)
+  corrplot(cor_matrix, method = "color", type = "upper", addCoef.col = "black",
+           number.cex = 0.5, tl.cex = 0.6, tl.srt = 45)
+  dev.off()
 
 #### 3 Merge with Covariates for Mortality Analysis ####
 analysis_df <- analysis_df %>%
@@ -185,6 +188,11 @@ format_hr <- function(hr, ci_low, ci_high, p) {
   stars <- ifelse(p < 0.001, "***", ifelse(p < 0.01, "**", ifelse(p < 0.05, "*", "")))
   sprintf("%.3f (%.3f-%.3f)%s", hr, ci_low, ci_high, stars)
 }
+format_hr <-
+function(hr, ci_low, ci_high, p) {                                                                                                           
+    stars <- ifelse(p < 0.001, "***", ifelse(p < 0.01, "**", ifelse(p < 0.05, "*", "")))                                                                    
+    sprintf("%.3f (%.3f-%.3f)%s p=%.4f", hr, ci_low, ci_high, stars, p)
+  }
 
 # Run all models and collect results
 results_list <- lapply(n_versions, function(spec) {
@@ -223,6 +231,8 @@ cat("Model 2: + Peak30, BMI, smoking, alcohol, education, mobility, comorbiditie
 cat("* p<0.05, ** p<0.01, *** p<0.001\n\n")
 
 print(results_df, row.names = FALSE)
+write.csv(results_df, "Output/mortality/hip_results_df.csv", row.names = FALSE)
+write.csv(results_df, "Output/mortality/wrist_results_df.csv", row.names = FALSE)
 
 #### 4 Visualizations ####
 par(mfrow = c(1, 3))                           
@@ -256,6 +266,34 @@ par(mfrow = c(1, 3))
   analysis_df), col = "blue")                    
                                                  
   par(mfrow = c(1, 1))
+
+  pdf("Output/dispersion/variables/hip_map.pdf", width = 12, height = 5)
+  pdf("Output/dispersion/variables/wrist_map.pdf", width = 12, height = 5)
+  par(mfrow = c(1, 3))
+  plot(analysis_df$n_mle_marked, analysis_df$n_raw, main
+   = paste0("n (r=", round(cor(analysis_df$n_mle_marked,
+   analysis_df$n_raw, use = "complete.obs"), 3),
+  ")"), xlab = "n_mle", ylab = "n_star")
+  abline(lm(n_raw ~ n_mle_marked, data = analysis_df),
+  col = "blue")
+  plot(analysis_df$lambda_mle_marked,
+  analysis_df$lambda_count, main = paste0("lambda
+   (r=", round(cor(analysis_df$lambda_mle_marked,
+  analysis_df$lambda_count, use =
+  "complete.obs"), 3), ")"), xlab = "lambda_mle",
+   ylab = "lambda_count")
+  abline(lm(lambda_count ~ lambda_mle_marked, data =
+  analysis_df), col = "blue")
+  plot(analysis_df$mu_mle_marked,
+  analysis_df$mu_star_raw, main = paste0("mu
+  (r=", round(cor(analysis_df$mu_mle_marked,
+  analysis_df$mu_star_raw, use = "complete.obs"),
+   3), ")"), xlab = "mu_mle", ylab =
+  "mu_star")
+  abline(lm(mu_star_raw ~ mu_mle_marked, data =
+  analysis_df), col = "blue")
+  par(mfrow = c(1, 1))
+  dev.off()
 
 #### 4b Boxplots: Parameter Distributions Across Methods ####
 
@@ -311,20 +349,16 @@ p_lambda <- ggplot(lambda_long, aes(x = method, y = lambda, fill = method)) +
 print(p_n)
 print(p_mu)
 print(p_lambda)
-
+ggsave("Output/dispersion/variables/hip_boxplot_n.pdf", p_n, width = 8, height = 6)
+ggsave("Output/dispersion/variables/hip_boxplot_mu.pdf", p_mu, width = 8, height = 6)
+ggsave("Output/dispersion/variables/hip_boxplot_lambda.pdf", p_lambda, width = 8, height = 6)
+ggsave("Output/dispersion/variables/wrist_boxplot_n.pdf", p_n, width = 8, height = 6)
+ggsave("Output/dispersion/variables/wrist_boxplot_mu.pdf", p_mu, width = 8, height = 6)
+ggsave("Output/dispersion/variables/wrist_boxplot_lambda.pdf", p_lambda, width = 8, height = 6)
 
 #### 5 Night Regularity Exploratory Analysis ####
- par(mfrow = c(1, 3))                                          
-    hist(analysis_df$days_consolidated_sleep, main =            
-  "Consolidated Sleep", xlab = "")                                                               
-    hist(analysis_df$days_early_activer, main = "Early          
-  Activation", xlab = "")                                       
-    hist(analysis_df$days_late_activer, main = "Late            
-  Activation", xlab = "")                                       
-  par(mfrow = c(1, 1))     
-
 model_night <- svycoxph((Surv(surv_time, event) ~
-                         days_consolidated_sleep +
+                         mean_sleep_cv +
                          mean_sleep_events +
                          days_early_activer +
                          days_late_activer +
@@ -332,3 +366,34 @@ model_night <- svycoxph((Surv(surv_time, event) ~
                        design = survey_design)        
 
 print(summary(model_night))
+
+# Extract night model results for LaTeX table
+night_coefs <- summary(model_night)$coefficients
+night_vars <- c("mean_sleep_cv",
+                "mean_sleep_events",
+                "days_early_activer", "days_late_activer",
+                "Age", "GenderFemale",
+                "RaceMexican American", "RaceOther Hispanic", "RaceBlack", "RaceOther")
+night_labels <- c("Sleep consolidation (CV)",
+                  "Mean nocturnal activity",
+                  "Days with early activity", "Days with late activity",
+                  "Age (per year)", "Female",
+                  "Race: Mexican American", "Race: Other Hispanic", "Race: Black", "Race: Other")
+
+night_table <- data.frame(
+  Variable = night_labels,
+  HR = sprintf("%.4f", exp(night_coefs[night_vars, 1])),
+  CI = sprintf("%.4f--%.4f",
+    exp(night_coefs[night_vars, 1] - 1.96 * night_coefs[night_vars, 4]),
+    exp(night_coefs[night_vars, 1] + 1.96 * night_coefs[night_vars, 4])),
+  p = ifelse(night_coefs[night_vars, 6] < 0.001, "<0.001",
+    sprintf("%.4f", night_coefs[night_vars, 6])),
+  sig = ifelse(night_coefs[night_vars, 6] < 0.001, "***",
+    ifelse(night_coefs[night_vars, 6] < 0.01, "**",
+      ifelse(night_coefs[night_vars, 6] < 0.05, "*", "")))
+)
+
+print(night_table, row.names = FALSE)
+write.csv(night_table, "Output/mortality/hip_night_table.csv", row.names = FALSE)
+write.csv(night_table, "Output/mortality/wrist_night_table.csv", row.names = FALSE)
+

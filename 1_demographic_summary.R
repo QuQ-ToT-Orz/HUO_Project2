@@ -26,10 +26,16 @@ rm(Act_Analysis)
 # These contain only subjects who passed all quality control steps
 load(file.path(dir_path, "runlength/event_analysis_new.RData"))
 filtered_seqn_wrist <- unique(event_analysis$SEQN)
+night_metrics_wrist <- event_analysis %>%
+  select(SEQN, days_early_activer, days_late_activer, consolidated_sleep_days, mean_sleep_cv) %>%
+  distinct()
 rm(event_analysis)
 
 load(file.path(dir_path, "runlength/event_analysis_old.RData"))
 filtered_seqn_hip <- unique(event_analysis$SEQN)
+night_metrics_hip <- event_analysis %>%
+  select(SEQN, days_early_activer, days_late_activer, consolidated_sleep_days, mean_sleep_cv) %>%
+  distinct()
 rm(event_analysis)
 
 # Filter demographic data to include only subjects from 2_preprocessing.R
@@ -74,10 +80,12 @@ activity_summary_hip <- Act_Analysis_hip %>%
 
 # Merge activity metrics with demographic data
 data_wrist <- data_wrist %>%
-    left_join(activity_summary_wrist, by = "SEQN")
+    left_join(activity_summary_wrist, by = "SEQN") %>%
+    left_join(night_metrics_wrist %>% mutate(consolidated_sleep_days = consolidated_sleep_days * 7), by = "SEQN")
 
 data_hip <- data_hip %>%
-    left_join(activity_summary_hip, by = "SEQN")
+    left_join(activity_summary_hip, by = "SEQN") %>%
+    left_join(night_metrics_hip %>% mutate(consolidated_sleep_days = consolidated_sleep_days * 7), by = "SEQN")
 
 #### 2. Prepare Data for Summary ####
 # Select the relevant columns for the demographic table
@@ -105,7 +113,12 @@ hip_summary_data <- data_hip %>%
         ASTP,
         ST,
         SBout,
-        ABout
+        ABout,
+        # Nighttime metrics
+        mean_sleep_cv,
+        consolidated_sleep_days,
+        days_early_activer,
+        days_late_activer
     )
 
 wrist_summary_data <- data_wrist %>%
@@ -132,7 +145,12 @@ wrist_summary_data <- data_wrist %>%
         ASTP,
         ST,
         SBout,
-        ABout
+        ABout,
+        # Nighttime metrics
+        mean_sleep_cv,
+        consolidated_sleep_days,
+        days_early_activer,
+        days_late_activer
     )
 
 
@@ -163,7 +181,11 @@ hip_table <- hip_summary_data %>%
             ASTP ~ "Active-to-Sedentary Transition Prob.",
             ST ~ "Sedentary Time (min/day)",
             SBout ~ "Sedentary Bout Duration (min)",
-            ABout ~ "Active Bout Duration (min)"
+            ABout ~ "Active Bout Duration (min)",
+            mean_sleep_cv ~ "Sleep Consolidation (CV)",
+            consolidated_sleep_days ~ "Days of Consolidated Sleep",
+            days_early_activer ~ "Days with Early Activity",
+            days_late_activer ~ "Days with Late Activity"
         ),
         statistic = list(
             all_continuous() ~ "{mean} ({sd})",
@@ -199,7 +221,11 @@ wrist_table <- wrist_summary_data %>%
             ASTP ~ "Active-to-Sedentary Transition Prob.",
             ST ~ "Sedentary Time (min/day)",
             SBout ~ "Sedentary Bout Duration (min)",
-            ABout ~ "Active Bout Duration (min)"
+            ABout ~ "Active Bout Duration (min)",
+            mean_sleep_cv ~ "Sleep Consolidation (CV)",
+            consolidated_sleep_days ~ "Days of Consolidated Sleep",
+            days_early_activer ~ "Days with Early Activity",
+            days_late_activer ~ "Days with Late Activity"
         ),
         statistic = list(
             all_continuous() ~ "{mean} ({sd})",

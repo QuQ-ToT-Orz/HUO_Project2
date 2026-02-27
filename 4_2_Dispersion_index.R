@@ -7,11 +7,11 @@ library(tidyr)
 library(ggplot2)
 
 #### 1 Load Data ####
-load(file = paste("../2025/data/runlength/", "event_analysis_old.RData", sep = ""))
-load(file = paste("../2025/data/count/", "data_analysis_old.RData", sep = ""))
+load(file = paste("./data/runlength/", "event_analysis_old.RData", sep = ""))
+load(file = paste("./data/count/", "data_analysis_old.RData", sep = ""))
 
-load(file = paste("../2025/data/runlength/", "event_analysis_new.RData", sep = ""))
-load(file = paste("../2025/data/mims/", "data_analysis_new.RData", sep = ""))
+load(file = paste("./data/runlength/", "event_analysis_new.RData", sep = ""))
+load(file = paste("./data/mims/", "data_analysis_new.RData", sep = ""))
 
 circadian_bin_size <- 30
 window_sizes <- c(15, 30, 60, 90, 120)
@@ -209,7 +209,7 @@ window_sensitivity <- dispersion_df %>%
 
 print(window_sensitivity)
 
-ggplot(window_sensitivity, aes(x = window_size)) +
+p_windows <- ggplot(window_sensitivity, aes(x = window_size)) +
   # D_raw with error ribbon
   geom_ribbon(aes(ymin = mean_D_raw - sd_D_raw, ymax = mean_D_raw + sd_D_raw),
               fill = "red", alpha = 0.2) +
@@ -233,6 +233,9 @@ ggplot(window_sensitivity, aes(x = window_size)) +
   scale_color_manual(values = c("D_raw" = "red", "D_marks" = "orange", "D_adj" = "blue", "D_adj_marks" = "darkgreen")) +
   labs(x = "Window Size (min)", y = "Dispersion Index", color = "") +
   theme_minimal()
+print(p_windows)
+ggsave("Output/dispersion/hip_windows.pdf", p_windows, width = 10, height = 6)
+ggsave("Output/dispersion/wrist_windows.pdf", p_windows, width = 10, height = 6)
 
 #### 5 Create Summary and Save ####
 window_diagnostics <- active_events %>%
@@ -298,9 +301,8 @@ dispersion_summary <- dispersion_df %>%
          lambda_count, lambda_marks,
          mu_star_raw, mu_star_adj, mu_star_marks, mu_star_adj_marks)
 
-
 # Save results
-dir_path <- "../2025/data/dispersion/"
+dir_path <- "./data/dispersion/"
 save(dispersion_df, file = paste0(dir_path, "dispersion_df_old.RData"))
 save(dispersion_summary, file = paste0(dir_path, "dispersion_summary_old.RData"))
 

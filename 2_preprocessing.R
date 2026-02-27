@@ -21,6 +21,7 @@ process_daily_data <- function(data, start_time = 0, end_time = 1440) {
     do({
       filtered_data <- .
       times <- filtered_data$start
+      # times <- filtered_data$start[filtered_data$categories != "sedentary"]
 
       # Find gap positions (> 60 minutes)
       gap_positions <- which(diff(times) > 60)
@@ -42,6 +43,31 @@ process_daily_data <- function(data, start_time = 0, end_time = 1440) {
         filtered_data <- filtered_data[start_idx:end_idx, ]
       }
       # If no gaps, keep all data
+
+      # # Active-event gap handling: keep longest continuous active segment
+      # active_times <- filtered_data$start[filtered_data$categories != "sedentary"]
+      # if (length(active_times) > 1) {
+      #   active_gaps <- which(diff(active_times) > 60)
+      #   if (length(active_gaps) > 0) {
+      #     seg_starts <- c(1, active_gaps + 1)
+      #     seg_ends <- c(active_gaps, length(active_times))
+      #     seg_lengths <- seg_ends - seg_starts + 1
+      #     longest <- which.max(seg_lengths)
+      #     time_start <- active_times[seg_starts[longest]]
+      #     time_end <- active_times[seg_ends[longest]]
+      #     # Keep ALL events (active + sedentary) within this time range
+      #     filtered_data <- filtered_data %>%
+      #       filter(start >= time_start, start <= time_end)
+      #   }
+      # }
+
+      # Trim so sequence starts and ends with sedentary
+      # ensuring every burst cluster has a complete lifecycle
+      first_sed <- min(which(filtered_data$categories == "sedentary"))
+      last_sed <- max(which(filtered_data$categories == "sedentary"))
+      if (length(first_sed) > 0 && !is.na(first_sed) && length(last_sed) > 0 && !is.na(last_sed)) {
+        filtered_data <- filtered_data[first_sed:last_sed, ]
+      }
 
       filtered_data
     }) %>%
@@ -100,8 +126,13 @@ process_daily_data <- function(data, start_time = 0, end_time = 1440) {
     ) %>%
     ungroup()
 
-  # Step 4: Calculate activity timing tags
-  activity_timing_summary <- daily_data %>%
+  # Raw data for valid subjects (unaffected by gap/trim processing)
+  raw_valid <- data %>%
+    filter(SEQN %in% valid_subjects,
+           start >= start_time, start <= end_time)
+
+  # Step 4: Calculate activity timing tags (from raw data)
+  activity_timing_summary <- raw_valid %>%
     group_by(SEQN, WEEKDAY) %>%
     summarise(
       total_events = n(),
@@ -114,8 +145,8 @@ process_daily_data <- function(data, start_time = 0, end_time = 1440) {
       late_activer = starts_after_11pm > (total_events * 0.1)
     )
 
-  # Step 5: Calculate sleep regularity during core sleep time (1am-5am)
-  sleep_metrics <- daily_data %>%
+  # Step 5: Calculate sleep regularity during core sleep time (1am-5am, from raw data)
+  sleep_metrics <- raw_valid %>%
     group_by(SEQN, WEEKDAY) %>%
     summarise(
       sleep_events = sum(start >= 60 & start < 300),
@@ -136,7 +167,7 @@ process_daily_data <- function(data, start_time = 0, end_time = 1440) {
       sleep_regularity = case_when(
         hourly_window_mean == 0 ~ "Consolidated",
         hourly_window_cv <= 0.3 ~ "Fragmented",
-        hourly_window_cv <= 0.8 ~ "Somewhat Consolidated",
+        hourly_window_cv <= 0.8 ~ "Somewhat Fragmented",
         TRUE ~ "Consolidated"
       )
     )
@@ -152,7 +183,10 @@ process_daily_data <- function(data, start_time = 0, end_time = 1440) {
     left_join(
       sleep_metrics %>%
         group_by(SEQN) %>%
-        summarise(days_consolidated_sleep = sum(sleep_regularity == "Consolidated"), .groups = "drop"),
+        summarise(
+          consolidated_sleep_days = mean(hourly_window_mean == 0, na.rm = TRUE),
+          mean_sleep_cv = mean(hourly_window_cv[hourly_window_mean > 0], na.rm = TRUE),
+          .groups = "drop"),
       by = "SEQN"
     )
 
@@ -163,13 +197,13 @@ process_daily_data <- function(data, start_time = 0, end_time = 1440) {
   return(daily_data)
 }
 #### 1 Load the data and functions ####
-load("../2025/data/count/Act_Analysis_old.RData")
-load("../2025/data/count/Flags_Analysis_old.RData")
+load("./data/count/Act_Analysis_old.RData")
+load("./data/count/Flags_Analysis_old.RData")
 
-load("../2025/data/mims/Act_Analysis_new.RData")
-load("../2025/data/mims/Flags_Analysis_new.RData")
+load("./data/mims/Act_Analysis_new.RData")
+load("./data/mims/Flags_Analysis_new.RData")
 
-set.seed(123)
+set.seed(42)
 sample_id <- Act_Analysis %>%
   group_by(Gender, Race, MobilityProblem) %>%
   summarise(ID = list(unique(SEQN)), .groups = "keep") %>%
@@ -211,7 +245,7 @@ runlength(Act_Analysis[1:100, ],
 # 4 - runlength_single (TRUE/FALSE) → all thresholds → filter to max (or original values) - multivariate_marked modelling
 
 # save
-dir_path <- "../2025/data/runlength/"
+dir_path <- "./data/runlength/"
 for (path in c(dir_path)) {
   if (!dir.exists(path)) {
     dir.create(path)
@@ -251,7 +285,7 @@ runlength(Act_Analysis[1:100, ],
 # 4 - runlength_single (TRUE/FALSE) → all thresholds → filter to max (or original values) - multivariate_marked modelling
 
 # save
-dir_path <- "../2025/data/runlength/"
+dir_path <- "./data/runlength/"
 for (path in c(dir_path)) {
   if (!dir.exists(path)) {
     dir.create(path)
@@ -396,19 +430,19 @@ save(rle_analysis, file = paste(dir_path, "rle_analysis_new.RData", sep = ""))
 save(event_analysis, file = paste(dir_path, "event_analysis_new.RData", sep = ""))
 
 #### 4 data viz with examples ####
-load("../2025/data/count/Act_Analysis_old.RData")
-load("../2025/data/count/Flags_Analysis_old.RData")
-load("../2025/data/runlength/rle_analysis_old.RData")
-load("../2025/data/runlength/event_analysis_old.RData")
+load("./data/count/Act_Analysis_old.RData")
+load("./data/count/Flags_Analysis_old.RData")
+load("./data/runlength/rle_analysis_old.RData")
+load("./data/runlength/event_analysis_old.RData")
 
-load("../2025/data/mims/Act_Analysis_new.RData")
-load("../2025/data/mims/Flags_Analysis_new.RData")
-load("../2025/data/runlength/rle_analysis_new.RData")
-load("../2025/data/runlength/event_analysis_new.RData")
+load("./data/mims/Act_Analysis_new.RData")
+load("./data/mims/Flags_Analysis_new.RData")
+load("./data/runlength/rle_analysis_new.RData")
+load("./data/runlength/event_analysis_new.RData")
 result_rle <- rle_analysis
 seqn <- levels(Act_Analysis$SEQN)[1]
 seqn = 40583 # hip
-seqn = 64161 # wrist
+seqn = 63205 # wrist
 weekday <- levels(Act_Analysis$WEEKDAY)[2]
 
 #### 4_1 data viz - stationary ####
@@ -433,7 +467,19 @@ par(mfrow = c(1, 1))
 
 #### 4_2 data viz - sleep/wear/non-wear ####
 plot_activity_and_runlength(Act_Analysis, seqn, weekday, result_rle)
-plot_events(Act_Analysis, seqn, weekday, result_rle)
+plot_events(Act_Analysis, seqn, weekday, result_rle, minute_events = event_analysis)
+for (wd in weekdays) {
+  has_data <- any(Act_Analysis$SEQN == seqn & Act_Analysis$WEEKDAY == wd)
+    pdf(paste0("Output/runlength/hip/hip_", seqn, "_", wd, ".pdf"), width = 12, height = 9)
+    plot_events(Act_Analysis, seqn, wd, result_rle, minute_events = event_analysis)
+    dev.off()
+}
+for (wd in weekdays) {
+  has_data <- any(Act_Analysis$SEQN == seqn & Act_Analysis$WEEKDAY == wd)
+    pdf(paste0("Output/runlength/wrist/wrist_", seqn, "_", wd, ".pdf"), width = 12, height = 9)
+    plot_events(Act_Analysis, seqn, wd, result_rle, minute_events = event_analysis)
+    dev.off()
+}
 # Function to plot 24-hour data with waking periods highlighted
 plot_subject_flag(seqn, weekday, "hip")
 plot_subject_flag(seqn, weekday, "wrist")
@@ -443,10 +489,18 @@ plot_daily_or_weekly(Act_Analysis,
   dataset = "daily_long", period = "daily"
 ) +
   labs(y = "acceleration")
-plot_daily_or_weekly(Act_Analysis,
+pdf(paste0("Output/runlength/hip/hip_", seqn, "_Raw.pdf"), width = 12, height = 9)   
+print(plot_daily_or_weekly(Act_Analysis,
   id = seqn, data_type = "Raw",
   dataset = "daily_long", period = "daily"
 ) +
-  labs(y = "acceleration")
-
+  labs(y = "acceleration"))
+dev.off()
+pdf(paste0("Output/runlength/wrist/wrist_", seqn, "_Raw.pdf"), width = 12, height = 9)   
+print(plot_daily_or_weekly(Act_Analysis,
+  id = seqn, data_type = "Raw",
+  dataset = "daily_long", period = "daily"
+) +
+  labs(y = "acceleration"))
+dev.off()
 # ?inverse.rle()

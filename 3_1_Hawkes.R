@@ -67,16 +67,16 @@ check_conv(fit)$converged
 # fit_active <- fit_hawkes(times_active, parameters = sv)
 
 #### 2 hip ####
-load("../2025/data/runlength/event_analysis_old.RData")
-load("../2025/data/count/Act_Analysis_old.RData")
-load("../2025/data/count/data_analysis_old.RData")
+load("./data/runlength/event_analysis_old.RData")
+load("./data/count/Act_Analysis_old.RData")
+load("./data/count/data_analysis_old.RData")
 
 daily_data <- event_analysis
 daily_data <- event_analysis %>% mutate(original_value = 1) 
 seqn <- unique(daily_data$SEQN)[1]
 seqn = 40583
 weekday <- unique(daily_data$WEEKDAY)[1]
-hip_data <- transform_hawkes_data(daily_data, seqn, weekday, active_only = TRUE, data_type = "hip")
+hip_data <- transform_hawkes_data(daily_data, seqn, weekday, active_only = TRUE, data_type = "hip", jitter_factor = 2, jitter_seed = 42)
 fit1_hip <- fit_hawkes(
   times = hip_data$times,
   marks = hip_data$marks, model = 1
@@ -92,7 +92,7 @@ all_days_times_list <- list()
 all_days_marks_list <- list()
 for (day in all_days_list) {
   if (day %in% unique(daily_data$WEEKDAY)) {
-    day_data <- transform_hawkes_data(daily_data, seqn, day, data_type = "hip", time_divisor = 10)
+    day_data <- transform_hawkes_data(daily_data, seqn, day, data_type = "hip", jitter_factor = 2, jitter_seed = 42)
     all_days_times_list[[day]] <- day_data$times
     all_days_marks_list[[day]] <- day_data$marks
   }
@@ -110,24 +110,31 @@ get_coefs(best_fit_hip)
 show_hawkes(best_fit_hip, per_series = T)
 show_hawkes_GOF(best_fit_hip, per_series = T)
 show_interarrival_pattern(best_fit_hip, per_series = T)
+pdf("Output/hawkes/hip/hip_marked.pdf", width = 12, height = 8)
+pdf("Output/hawkes/hip/hip_unmarked.pdf", width = 12, height = 8)
+print(show_hawkes(best_fit_hip, per_series = T))
+show_hawkes_GOF(best_fit_hip, per_series = T)
+show_interarrival_pattern(best_fit_hip, per_series = T)
+dev.off()
+
 '''
 marked
                  Estimate  Std. Error
-log_mu        -3.53923117 0.142457277
-logit_abratio  1.11442941 0.247603727
-log_beta      -2.87911489 0.184769209
-mu             0.02903564 0.004136338
-alpha          0.04230432 0.006912638
-beta           0.05618447 0.010381160
+log_mu        -3.49314077 0.136146664
+logit_abratio  1.05563521 0.234403824
+log_beta      -2.69861846 0.173574396
+mu             0.03040523 0.004139570
+alpha          0.04992571 0.007635886
+beta           0.06729842 0.011681283
 
 unmarked
                  Estimate  Std. Error
-log_mu        -3.63032989 0.150684833
-logit_abratio  1.25082364 0.263095588
-log_beta      -2.88064019 0.172224747
-mu             0.02650744 0.003994269
-alpha          0.04361362 0.006729868
-beta           0.05609884 0.009661608
+log_mu        -3.58029517 0.144777804
+logit_abratio  1.18836580 0.249923962
+log_beta      -2.70970368 0.164084576
+mu             0.02786747 0.004034591
+alpha          0.05101216 0.007448569
+beta           0.06655653 0.010920899
 '''
 
 # Manual grid search for experimentation
@@ -181,16 +188,16 @@ if (!is.null(best_fit_manual)) {
 }
 
 #### 3 wrist ####
-load("../2025/data/runlength/event_analysis_new.RData")
-load("../2025/data/mims/data_analysis_new.RData")
-load("../2025/data/mims/Act_Analysis_new.RData")
+load("./data/runlength/event_analysis_new.RData")
+load("./data/mims/data_analysis_new.RData")
+load("./data/mims/Act_Analysis_new.RData")
 
 daily_data <- event_analysis
 daily_data <- event_analysis %>% mutate(original_value = 1) 
 seqn <- unique(daily_data$SEQN)[1]
-seqn = 64161
+seqn = 63205
 weekday <- unique(daily_data$WEEKDAY)[1]
-wrist_data <- transform_hawkes_data(daily_data, seqn, weekday, active_only = TRUE, data_type = "wrist")
+wrist_data <- transform_hawkes_data(daily_data, seqn, weekday, active_only = TRUE, data_type = "wrist", jitter_factor = 2, jitter_seed = 42)
 fit1_wrist <- fit_hawkes(
   times = wrist_data$times,
   marks = wrist_data$marks, model = 1
@@ -206,7 +213,7 @@ all_days_times_list <- list()
 all_days_marks_list <- list()
 for (day in all_days_list) {
   if (day %in% unique(daily_data$WEEKDAY)) {
-    day_data <- transform_hawkes_data(daily_data, seqn, day, data_type = "wrist", time_divisor = 10)
+    day_data <- transform_hawkes_data(daily_data, seqn, day, data_type = "wrist", jitter_factor = 2, jitter_seed = 42)
     all_days_times_list[[day]] <- day_data$times
     all_days_marks_list[[day]] <- day_data$marks
   }
@@ -224,25 +231,31 @@ get_coefs(best_fit_wrist)
 show_hawkes(best_fit_wrist, per_series = T)
 show_hawkes_GOF(best_fit_wrist, per_series = T)
 show_interarrival_pattern(best_fit_wrist, per_series = T)
+pdf("Output/hawkes/wrist/wrist_marked.pdf", width = 12, height = 8)
+pdf("Output/hawkes/wrist/wrist_unmarked.pdf", width = 12, height = 8)
+print(show_hawkes(best_fit_wrist, per_series = T))
+show_hawkes_GOF(best_fit_wrist, per_series = T)
+show_interarrival_pattern(best_fit_wrist, per_series = T)
+dev.off()
 
 '''
 marked
                  Estimate  Std. Error
-log_mu        -3.51911042 0.106014236
-logit_abratio  1.54708514 0.203297858
-log_beta      -1.91632813 0.081682702
-mu             0.02962578 0.003140754
-alpha          0.12132097 0.009777489
-beta           0.14714627 0.012019305
+log_mu        -2.59945051 0.110343845
+logit_abratio  1.02374309 0.186146345
+log_beta      -2.50698664 0.113410809
+mu             0.07431440 0.008200137
+alpha          0.05996957 0.006412291
+beta           0.08151350 0.009244512
 
 unmarked
                  Estimate  Std. Error
-log_mu        -3.60581534 0.110728118
-logit_abratio  1.65498515 0.217135757
-log_beta      -1.93452643 0.079469233
-mu             0.02716529 0.003007961
-alpha          0.12131081 0.009559128
-beta           0.14449268 0.011482722
+log_mu        -2.67265160 0.120340202
+logit_abratio  1.12411455 0.198843237
+log_beta      -2.54861840 0.114479040
+mu             0.06906884 0.008311758
+alpha          0.05901370 0.006452292
+beta           0.07818962 0.008951072
 '''
 
 # Manual grid search for experimentation

@@ -82,7 +82,8 @@ perform_hawkes_grid_search <- function(times_data = NULL, marks_data = NULL, eve
 }
 
 transform_hawkes_data <- function(data, seqn, weekday, time_divisor = 1,
-                                 jitter_factor = 0, active_only = TRUE, data_type) {
+                                 jitter_factor = 0, active_only = TRUE,
+                                 data_type, jitter_seed = NULL) {
   # Filter data for specific seqn and weekday
   filtered_data <- data %>% filter(SEQN == seqn, WEEKDAY == weekday)
 
@@ -95,6 +96,7 @@ transform_hawkes_data <- function(data, seqn, weekday, time_divisor = 1,
 
   times <- filtered_data$start_other
   if (jitter_factor > 0 && length(times) > 1) {
+    if (!is.null(jitter_seed)) set.seed(jitter_seed)
     # Keep first event at 0, jitter only subsequent events
     jittered_times <- jitter(times, factor = jitter_factor)
     times[2:length(times)] <- jittered_times[2:length(times)]
@@ -155,7 +157,7 @@ process_run_marked <- function(
     single_day = FALSE, data_type) {
   if (single_day && !is.null(weekday)) {
     # Single day fitting
-    transformed_data <- transform_hawkes_data(runs_df, seqn, weekday, active_only = TRUE, data_type = data_type)
+    transformed_data <- transform_hawkes_data(runs_df, seqn, weekday, active_only = TRUE, data_type = data_type, jitter_factor = 2, jitter_seed = 42)
 
     # Initialization search
     best_fit <- perform_hawkes_grid_search(
@@ -183,6 +185,8 @@ process_run_marked <- function(
     # Get KS statistics
     gof_results <- show_hawkes_GOF(best_fit, plot = FALSE, tests = TRUE, return_values = TRUE)
     ks_D <- gof_results$ks_D
+    ia_mean <- gof_results$ia_mean
+    ia_sd <- gof_results$ia_sd
 
     return(list(
       id = as.character(seqn),
@@ -192,7 +196,9 @@ process_run_marked <- function(
       pdHess = results$converged,
       penalty_coef = penalty_coef,
       best_a_par_init = best_fit$best_a_par_init,
-      ks_D = ks_D
+      ks_D = ks_D,
+      ia_mean = ia_mean,
+      ia_sd = ia_sd
     ))
   } else {
     # Multi-series fitting for all 7 days together
@@ -203,7 +209,7 @@ process_run_marked <- function(
     all_days_marks_list <- list()
     for (day in all_days_list) {
       if (day %in% unique(runs_df$WEEKDAY)) {
-        day_data <- transform_hawkes_data(runs_df, seqn, day, data_type = data_type)
+        day_data <- transform_hawkes_data(runs_df, seqn, day, data_type = data_type, jitter_factor = 2, jitter_seed = 42)
         all_days_times_list[[day]] <- day_data$times
         all_days_marks_list[[day]] <- day_data$marks
       }
@@ -236,6 +242,8 @@ process_run_marked <- function(
     gof_results <- show_hawkes_GOF(best_fit, plot = FALSE, tests = TRUE, return_values = TRUE, per_series = TRUE)
     ks_D <- gof_results$ks_D
     ks_per_series <- gof_results$ks_per_series
+    ia_mean <- gof_results$ia_mean
+    ia_sd <- gof_results$ia_sd
 
     return(list(
       id = as.character(seqn),
@@ -246,7 +254,9 @@ process_run_marked <- function(
       penalty_coef = penalty_coef,
       best_a_par_init = best_fit$best_a_par_init,
       ks_D = ks_D,
-      ks_per_series = ks_per_series
+      ks_per_series = ks_per_series,
+      ia_mean = ia_mean,
+      ia_sd = ia_sd
     ))
   }
 }
@@ -311,8 +321,10 @@ process_fits_data <- function(fits_list) {
     alpha_se <- get_param_by_name(ses, "alpha")
     beta_se <- get_param_by_name(ses, "beta")
 
-    # Extract KS statistic
+    # Extract KS statistic and interarrival diagnostics
     ks_D <- if (!is.null(fit$ks_D)) fit$ks_D else NA
+    ia_mean <- if (!is.null(fit$ia_mean)) fit$ia_mean else NA
+    ia_sd <- if (!is.null(fit$ia_sd)) fit$ia_sd else NA
 
     # Extract raw parameters
     log_mu <- get_param_by_name(params, "log_mu")
@@ -329,7 +341,7 @@ process_fits_data <- function(fits_list) {
       mu = mu, alpha = alpha, beta = beta,
       mu_se = mu_se, alpha_se = alpha_se, beta_se = beta_se,
       pdHess = fit$pdHess,
-      ks_D = ks_D,
+      ks_D = ks_D, ia_mean = ia_mean, ia_sd = ia_sd,
       log_mu = log_mu, logit_abratio = logit_abratio, log_beta = log_beta,
       log_mu_se = log_mu_se, logit_abratio_se = logit_abratio_se, log_beta_se = log_beta_se,
       stringsAsFactors = FALSE

@@ -439,13 +439,25 @@ show_hawkes_GOF <- function(obj, plot = TRUE, tests = TRUE, return_values = FALS
         # Average KS D across series
         ks_D <- mean(ks_per_series, na.rm = TRUE)
 
+        # Compute pooled ia_mean and ia_sd (average of per-series values)
+        ia_means_per <- sapply(series_results, function(x) {
+          if (length(x$interarrivals) < 5) return(NA)
+          mean(x$interarrivals)
+        })
+        ia_sds_per <- sapply(series_results, function(x) {
+          if (length(x$interarrivals) < 5) return(NA)
+          sd(x$interarrivals)
+        })
+
         return(list(
           interarrivals = interarrivals,
           series_results = series_results,
           n_series = n_series,
           per_series = TRUE,
           ks_per_series = ks_per_series,
-          ks_D = ks_D
+          ks_D = ks_D,
+          ia_mean = mean(ia_means_per, na.rm = TRUE),
+          ia_sd = mean(ia_sds_per, na.rm = TRUE)
         ))
       }
 
@@ -551,7 +563,9 @@ show_hawkes_GOF <- function(obj, plot = TRUE, tests = TRUE, return_values = FALS
           series_results = series_results,
           n_series = n_series,
           per_series = FALSE,
-          ks_D = as.numeric(ks_test$statistic)
+          ks_D = as.numeric(ks_test$statistic),
+          ia_mean = mean(interarrivals),
+          ia_sd = sd(interarrivals)
         ))
       }
     }
@@ -684,7 +698,9 @@ show_hawkes_GOF <- function(obj, plot = TRUE, tests = TRUE, return_values = FALS
     if (return_values) {
       return(list(
         interarrivals = interarrivals,
-        ks_D = as.numeric(ks_test$statistic)
+        ks_D = as.numeric(ks_test$statistic),
+        ia_mean = mean(interarrivals),
+        ia_sd = sd(interarrivals)
       ))
     }
   }

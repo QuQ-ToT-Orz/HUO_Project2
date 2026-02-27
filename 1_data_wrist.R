@@ -7,7 +7,7 @@ library(devtools)
 library(HUO)
 
 # Define the directory and file paths
-dir_path <- "../2025/data/mims/"
+dir_path <- "./data/mims/"
 if (!dir.exists(dir_path)) {
   dir.create(dir_path)
 }
@@ -17,8 +17,8 @@ if (!dir.exists(dir_path)) {
 # wget https://ftp.cdc.gov/pub/NHANES/LargeDataFiles/PAXMIN_G.xpt
 
 # Read both files
-PAXMIN_G <- read_selected_xpt("../2025/data/mims/raw/PAXMIN_G.xpt")
-PAXMIN_H <- read_selected_xpt("../2025/data/mims/raw/PAXMIN_H.xpt")
+PAXMIN_G <- read_selected_xpt("./data/mims/raw/PAXMIN_G.xpt")
+PAXMIN_H <- read_selected_xpt("./data/mims/raw/PAXMIN_H.xpt")
 
 #### 2 Load the data ####
 # The five publicly available data categories are:

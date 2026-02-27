@@ -97,10 +97,10 @@ fit_list_hawkes_marked <- function(runs_df, n_cores, penalty_coef, single_day = 
 }
 
 #### 1 hip ####
-load("../2025/data/count/Act_Analysis_old.RData")
-load("../2025/data/count/Flags_Analysis_old.RData")
-load("../2025/data/count/data_analysis_old.RData")
-load("../2025/data/runlength/event_analysis_old.RData")
+load("./data/count/Act_Analysis_old.RData")
+load("./data/count/Flags_Analysis_old.RData")
+load("./data/count/data_analysis_old.RData")
+load("./data/runlength/event_analysis_old.RData")
 
 ### 1-1 Unmarked ####
 daily_data <- event_analysis %>% mutate(original_value = 1)
@@ -111,9 +111,9 @@ fits_list_all <- fit_list_hawkes_marked(daily_data,
 )
 convergence_results_all <- check_convergence(fits_list_all)
 fits_hawkes_unmarked_all <- process_fits_data(fits_list_all)
-View(fits_hawkes_unmarked_all)
+# View(fits_hawkes_unmarked_all)
 
-dir_path <- "../2025/data/hawkes/"
+dir_path <- "./data/hawkes/"
 for (path in c(dir_path)) {
   if (!dir.exists(path)) {
     dir.create(path)
@@ -130,9 +130,9 @@ fits_list_all <- fit_list_hawkes_marked(daily_data,
 )
 convergence_results_all <- check_convergence(fits_list_all)
 fits_hawkes_marked_all <- process_fits_data(fits_list_all)
-View(fits_hawkes_marked_all)
+# View(fits_hawkes_marked_all)
 
-dir_path <- "../2025/data/hawkes/"
+dir_path <- "./data/hawkes/"
 for (path in c(dir_path)) {
   if (!dir.exists(path)) {
     dir.create(path)
@@ -141,10 +141,10 @@ for (path in c(dir_path)) {
 save(fits_list_all, file = paste(dir_path, "fits_marked_all_old.RData", sep = ""))
 
 #### 2 wrist ####
-load("../2025/data/mims/Act_Analysis_new.RData")
-load("../2025/data/mims/Flags_Analysis_new.RData")
-load("../2025/data/mims/data_analysis_new.RData")
-load("../2025/data/runlength/event_analysis_new.RData")
+load("./data/mims/Act_Analysis_new.RData")
+load("./data/mims/Flags_Analysis_new.RData")
+load("./data/mims/data_analysis_new.RData")
+load("./data/runlength/event_analysis_new.RData")
 
 ### 2-1 Unmarked ####
 daily_data <- event_analysis %>% mutate(original_value = 1)
@@ -156,7 +156,7 @@ fits_list_all <- fit_list_hawkes_marked(daily_data,
 convergence_results_all <- check_convergence(fits_list_all)
 fits_hawkes_unmarked_all <- process_fits_data(fits_list_all)
 
-dir_path <- "../2025/data/hawkes/"
+dir_path <- "./data/hawkes/"
 for (path in c(dir_path)) {
   if (!dir.exists(path)) {
     dir.create(path)
@@ -174,7 +174,7 @@ fits_list_all <- fit_list_hawkes_marked(daily_data,
 convergence_results_all <- check_convergence(fits_list_all)
 fits_hawkes_marked_all <- process_fits_data(fits_list_all)
 
-dir_path <- "../2025/data/hawkes/"
+dir_path <- "./data/hawkes/"
 for (path in c(dir_path)) {
   if (!dir.exists(path)) {
     dir.create(path)
@@ -184,14 +184,14 @@ save(fits_list_all, file = paste(dir_path, "fits_marked_all_new.RData", sep = ""
 
 #### 3 Compare unmarked vs marked ####
 # Load data (choose old or new)
-load("../2025/data/hawkes/fits_unmarked_all_old.RData")
+load("./data/hawkes/fits_unmarked_all_old.RData")
 fits_unmarked <- fits_list_all
-load("../2025/data/hawkes/fits_marked_all_old.RData")
+load("./data/hawkes/fits_marked_all_old.RData")
 fits_marked <- fits_list_all
 
-load("../2025/data/hawkes/fits_unmarked_all_new.RData")
+load("./data/hawkes/fits_unmarked_all_new.RData")
 fits_unmarked <- fits_list_all
-load("../2025/data/hawkes/fits_marked_all_new.RData")
+load("./data/hawkes/fits_marked_all_new.RData")
 fits_marked <- fits_list_all
 
 # Process fits and add identifiers
@@ -207,8 +207,8 @@ df_marked$n <- plogis(df_marked$logit_abratio)
 
 # Create wide format for paired comparison
 df_wide <- merge(
-  df_unmarked[, c("id", "mu", "alpha", "beta", "n", "ks_D")],
-  df_marked[, c("id", "mu", "alpha", "beta", "n", "ks_D")],
+  df_unmarked[, c("id", "mu", "alpha", "beta", "n", "ks_D", "ia_mean", "ia_sd")],
+  df_marked[, c("id", "mu", "alpha", "beta", "n", "ks_D", "ia_mean", "ia_sd")],
   by = "id", suffixes = c("_unmarked", "_marked")
 )
 
@@ -271,6 +271,8 @@ p_hist <- ggplot(df_plot, aes(x = value, fill = model)) +
   )
 
 print(p_hist)
+ggsave("Output/hawkes/distribution_hip.pdf", p_hist, width = 12, height = 8)
+ggsave("Output/hawkes/distribution_wrist.pdf", p_hist, width = 12, height = 8)
 
 p_violin <- ggplot(df_plot, aes(x = model, y = value, fill = model)) +
   geom_violin(alpha = 0.7, trim = FALSE) +
@@ -293,3 +295,5 @@ p_violin <- ggplot(df_plot, aes(x = model, y = value, fill = model)) +
   )
 
 print(p_violin)
+ggsave("Output/hawkes/violin_hip.pdf", p_violin, width = 12, height = 8)
+ggsave("Output/hawkes/violin_wrist.pdf", p_violin, width = 12, height = 8)
