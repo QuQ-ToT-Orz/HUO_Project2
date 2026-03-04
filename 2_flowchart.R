@@ -347,10 +347,10 @@ flowchart_hip <- create_full_flowchart(
   n_missing_lab = 1976,
   n_step1_final = 2607,
   # Step 2 (2_Preprocessing.R)
-  n_after_daily_process = 2572,  # After process_daily_data()
-  n_after_spike_clean = 2572,    # After clean_events_spikes()
-  n_after_rle_filter = 2561,     # After filter_rle_data()
-  n_final = 2561                 # After intersect() alignment
+  n_after_daily_process = 2570,  # After process_daily_data()
+  n_after_spike_clean = 2570,    # After clean_events_spikes()
+  n_after_rle_filter = 2560,     # After filter_rle_data()
+  n_final = 2560                 # After intersect() alignment
 )
 
 # Wrist/MIMS data flowchart

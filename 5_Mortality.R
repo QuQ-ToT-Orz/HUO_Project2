@@ -30,13 +30,14 @@ activity_summary <- Act_Analysis %>%
   group_by(SEQN) %>%
   summarise(
     TAC = mean(TAC, na.rm = TRUE),
-    MVPA = mean(MVPA, na.rm = TRUE),
     Peak30 = mean(Peak30, na.rm = TRUE),
     ASTP = mean(ASTP, na.rm = TRUE),
+    SATP = mean(SATP, na.rm = TRUE),
     SBout = mean(SBout, na.rm = TRUE),
     ABout = mean(ABout, na.rm = TRUE),
     ST = mean(ST, na.rm = TRUE),
     WT = mean(WT, na.rm = TRUE),
+    MVPA = mean(MVPA, na.rm = TRUE),
     .groups = "drop"
   )
 
@@ -118,7 +119,7 @@ analysis_df <- data_analysis %>%
 
   "lambda_count", "lambda_marks", "lambda_mle_unmarked", "lambda_mle_marked",
 
-  "TAC", "MVPA", "Peak30", "ASTP", "ST", "WT")
+  "TAC", "Peak30", "ASTP", "SATP", "WT", "MVPA", "ST")
   library(corrplot)
   cor_matrix <- cor(analysis_df[, cor_vars], use = "pairwise.complete.obs")
   corrplot(cor_matrix, method = "color", type = "upper", addCoef.col = "black",
@@ -188,10 +189,9 @@ format_hr <- function(hr, ci_low, ci_high, p) {
   stars <- ifelse(p < 0.001, "***", ifelse(p < 0.01, "**", ifelse(p < 0.05, "*", "")))
   sprintf("%.3f (%.3f-%.3f)%s", hr, ci_low, ci_high, stars)
 }
-format_hr <-
-function(hr, ci_low, ci_high, p) {                                                                                                           
-    stars <- ifelse(p < 0.001, "***", ifelse(p < 0.01, "**", ifelse(p < 0.05, "*", "")))                                                                    
-    sprintf("%.3f (%.3f-%.3f)%s p=%.4f", hr, ci_low, ci_high, stars, p)
+format_hr <- function(hr, ci_low, ci_high, p) { 
+  stars <- ifelse(p < 0.001, "***", ifelse(p < 0.01, "**", ifelse(p < 0.05, "*", "")))
+  sprintf("%.3f (%.3f-%.3f)%s p=%.4f", hr, ci_low, ci_high, stars, p)
   }
 
 # Run all models and collect results

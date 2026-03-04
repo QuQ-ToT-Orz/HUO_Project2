@@ -471,8 +471,8 @@ rm(list = c("lab_data", "dir_tmp", "varnames"))
 #### 3 Merge the data ####
 ## re-code activity counts which are considered "non-wear" to be 0
 ## this doesn't impact many data points, most estimated non-wear times correspond to 0 counts
-PAXINTEN_C[, paste0("MIN", 1:1440)] <- PAXINTEN_C[, paste0("MIN", 1:1440)] # * Flags_C[, paste0("MIN", 1:1440)] #
-PAXINTEN_D[, paste0("MIN", 1:1440)] <- PAXINTEN_D[, paste0("MIN", 1:1440)] # * Flags_D[, paste0("MIN", 1:1440)] #
+PAXINTEN_C[, paste0("MIN", 1:1440)] <- PAXINTEN_C[, paste0("MIN", 1:1440)] * Flags_C[, paste0("MIN", 1:1440)]
+PAXINTEN_D[, paste0("MIN", 1:1440)] <- PAXINTEN_D[, paste0("MIN", 1:1440)] * Flags_D[, paste0("MIN", 1:1440)]
 
 library(dplyr)
 ## Merge covariate, mortality, and accelerometry data

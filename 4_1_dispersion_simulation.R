@@ -379,6 +379,23 @@ poisson_summary
 clustered_summary
 regular_summary
 '''
+=== Simulation Tests for Dispersion Index Functions ===
+
+Test 1: Poisson Process (evenly distributed)
+Expected: D ≈ 1, n ≈ 0
+Generated 98267 events for 50 participants
+Mean events per day: 280.7629 
+
+
+Test 2: Clustered Process (Hawkes-like)
+Expected: D > 1, n > 0 (clustering)
+Generated 100345 events
+Mean events per day: 286.7 
+
+
+Test 3: Regular Process (evenly spaced)
+Expected: D < 1, n < 0 (regularity)
+
 # A tibble: 8 × 4
   window_size mean_D_raw sd_D_raw mean_n_raw
         <dbl>      <dbl>    <dbl>      <dbl>
