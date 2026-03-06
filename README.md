@@ -42,5 +42,13 @@ All population-level estimates use NHANES survey weights and account for the com
 
 All intermediate and final outputs from the full analysis pipeline are available in the `Output/` folder, enabling independent verification of results without re-running the computationally intensive steps (e.g., Hawkes MLE fitting).
 
-## Citation
-[Citation to be added upon publication]
+## Draft Manuscript
+The repository contains analysis code implemented by the author using publicly
+available NHANES data.
+A research manuscript describing the methodology and findings is currently in
+preparation and has not yet undergone peer review.
+
+## Funding
+This project has received funding from the European Union’s Horizon Europe
+research and innovation programme under the Marie Skłodowska-Curie Actions
+grant agreement No. 101072993 (Project: LABDA).
