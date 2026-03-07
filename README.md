@@ -14,7 +14,7 @@ This project implements a novel framework for characterizing the temporal cluste
 The key insight is that physical activity is not randomly distributed throughout the day but exhibits clustering behavior that may be independently associated with health outcomes.
 
 ## 火 HUO (Hawkes-based Unfolding of Observed Human Behavior) package
-It is built on top of [stelfi](https://github.com/cmjt/stelfi).
+It is built on top of [stelfi](https://github.com/cmjt/stelfi) and [rnhanesdata](https://github.com/andrew-leroux/rnhanesdata).
 Install it locally with:
 ```r
 devtools::install_local("./HUO", force = TRUE, dependencies = TRUE)
