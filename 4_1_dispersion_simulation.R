@@ -299,7 +299,7 @@ poisson_summary <- poisson_df %>%
 cat("\nTest 2: Clustered Process (Hawkes-like)\n")
 cat("Expected: D > 1, n > 0 (clustering)\n")
 
-clustered_events <- generate_clustered_events(n_participants, n_days, rate_per_hour, branching_n = 0.5)
+clustered_events <- generate_clustered_events(n_participants, n_days, rate_per_hour)
 cat("Generated", nrow(clustered_events), "events\n")
 cat("Mean events per day:", mean(table(paste(clustered_events$SEQN, clustered_events$WEEKDAY))), "\n\n")
 
@@ -389,8 +389,8 @@ Mean events per day: 280.7629
 
 Test 2: Clustered Process (Hawkes-like)
 Expected: D > 1, n > 0 (clustering)
-Generated 100345 events
-Mean events per day: 286.7 
+Generated 98830 events
+Mean events per day: 282.3714 
 
 
 Test 3: Regular Process (evenly spaced)
@@ -399,12 +399,12 @@ Expected: D < 1, n < 0 (regularity)
 # A tibble: 8 × 4
   window_size mean_D_raw sd_D_raw mean_n_raw
         <dbl>      <dbl>    <dbl>      <dbl>
-1           5       1.86    0.138      0.265
-2          10       2.58    0.260      0.375
-3          15       3.19    0.372      0.437
-4          30       4.41    0.632      0.520
-5          45       5.02    0.774      0.550
-6          60       5.46    1.06       0.566
-7          90       5.56    1.29       0.568
-8         120       6.19    1.74       0.586
+1           5       1.96    0.175      0.284
+2          10       2.79    0.341      0.398
+3          15       3.46    0.492      0.459
+4          30       5.04    0.883      0.550
+5          45       5.86    1.12       0.582
+6          60       6.56    1.50       0.603
+7          90       6.90    1.81       0.611
+8         120       7.61    2.45       0.626
 '''

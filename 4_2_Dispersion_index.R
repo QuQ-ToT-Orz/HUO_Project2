@@ -13,7 +13,7 @@ load(file = paste("./data/count/", "data_analysis_old.RData", sep = ""))
 load(file = paste("./data/runlength/", "event_analysis_new.RData", sep = ""))
 load(file = paste("./data/mims/", "data_analysis_new.RData", sep = ""))
 
-circadian_bin_size <- 30
+circadian_bin_size <- 180
 window_sizes <- c(15, 30, 60, 90, 120)
 
 #### 2 Core Functions ####
@@ -82,9 +82,9 @@ compute_dispersion_single_day <- function(day_events, circadian_rates, circadian
       summarise(
         raw_count = n(),
         raw_marks = sum(mark_norm),  # sum of normalized marks
-        mu_window = mean(circadian_rates[bin_idx]),  # window's average circadian rate (count-based)
-        mu_window_marks = mean(circadian_rates_marks[bin_idx]),  # window's average circadian rate (mark-weighted)
-        adj_count = raw_count / mu_window,  
+        mu_window = mean(circadian_rates[bin_idx]),
+        mu_window_marks = mean(circadian_rates_marks[bin_idx]),
+        adj_count = raw_count / mu_window,
         adj_marks = raw_marks / mu_window,  # Use count-based rate to preserve intensity variation 
         .groups = "drop"
       )
@@ -122,7 +122,6 @@ compute_dispersion <- function(events_df, window_sizes, bin_size) {
 
   day_results <- lapply(unique(events_df$WEEKDAY), function(day) {
     day_events <- events_df %>% filter(WEEKDAY == day)
-    # Compute circadian baselines for THIS day only
     circadian_rates <- estimate_circadian_baseline(day_events, bin_size)
     circadian_rates_marks <- estimate_circadian_baseline_marks(day_events, bin_size)
     compute_dispersion_single_day(day_events, circadian_rates, circadian_rates_marks, window_sizes, bin_size)
