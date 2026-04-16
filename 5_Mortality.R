@@ -189,10 +189,10 @@ format_hr <- function(hr, ci_low, ci_high, p) {
   stars <- ifelse(p < 0.001, "***", ifelse(p < 0.01, "**", ifelse(p < 0.05, "*", "")))
   sprintf("%.3f (%.3f-%.3f)%s", hr, ci_low, ci_high, stars)
 }
-format_hr <- function(hr, ci_low, ci_high, p) { 
-  stars <- ifelse(p < 0.001, "***", ifelse(p < 0.01, "**", ifelse(p < 0.05, "*", "")))
+format_hr <- function(hr, ci_low, ci_high, p) {
+  stars <- ifelse(p < 0.001, "***", ifelse(p < 0.01, "**", ifelse(p < 0.05, "*", ifelse(p < 0.10, ".", ""))))
   sprintf("%.3f (%.3f-%.3f)%s p=%.4f", hr, ci_low, ci_high, stars, p)
-  }
+}
 
 # Run all models and collect results
 results_list <- lapply(n_versions, function(spec) {
@@ -390,7 +390,8 @@ night_table <- data.frame(
     sprintf("%.4f", night_coefs[night_vars, 6])),
   sig = ifelse(night_coefs[night_vars, 6] < 0.001, "***",
     ifelse(night_coefs[night_vars, 6] < 0.01, "**",
-      ifelse(night_coefs[night_vars, 6] < 0.05, "*", "")))
+    ifelse(night_coefs[night_vars, 6] < 0.05, "*",
+      ifelse(night_coefs[night_vars, 6] < 0.10, ".", ""))))
 )
 
 print(night_table, row.names = FALSE)

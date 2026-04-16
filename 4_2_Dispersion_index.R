@@ -1,4 +1,6 @@
 #### 6 Dispersion Index Analysis ####
+# drop + inclusive + all-bin normalization + event-time mu + 
+# bin_size=120 + inclusive lambda + adj_marks uses mu_window #
 gc()
 rm(list = ls())
 
@@ -13,25 +15,25 @@ load(file = paste("./data/count/", "data_analysis_old.RData", sep = ""))
 load(file = paste("./data/runlength/", "event_analysis_new.RData", sep = ""))
 load(file = paste("./data/mims/", "data_analysis_new.RData", sep = ""))
 
-circadian_bin_size <- 180
+circadian_bin_size <- 120
 window_sizes <- c(15, 30, 60, 90, 120)
 
 #### 2 Core Functions ####
+sum_by_group <- function(values, group_idx, n_groups) {
+  totals <- numeric(n_groups)
+  grouped_sums <- tapply(values, group_idx, sum)
+  totals[as.integer(names(grouped_sums))] <- as.numeric(grouped_sums)
+  totals
+}
+
 # Single-day circadian baseline (normalized to mean=1) - count-based
 estimate_circadian_baseline <- function(day_events, bin_size) {
   n_bins <- 1440 / bin_size
-  day_events <- day_events %>%
-    mutate(bin_idx = pmin(floor((start - 1) / bin_size) + 1, n_bins))
+  bin_idx <- pmin(floor((day_events$start - 1) / bin_size) + 1, n_bins)
+  bin_rates <- tabulate(bin_idx, nbins = n_bins)
 
-  bin_counts <- day_events %>%
-    group_by(bin_idx) %>%
-    summarise(count = n(), .groups = "drop")
-
-  bin_rates <- rep(0, n_bins)
-  bin_rates[bin_counts$bin_idx] <- bin_counts$count
-
-  observed_bins <- which(bin_rates > 0)
-  bin_rates <- bin_rates / mean(bin_rates[observed_bins])
+  # Normalize across all bins so the daily expectation is properly distributed
+  bin_rates <- bin_rates / mean(bin_rates)
 
   attr(bin_rates, "bin_size") <- bin_size
   return(bin_rates)
@@ -40,18 +42,10 @@ estimate_circadian_baseline <- function(day_events, bin_size) {
 # Single-day circadian baseline (normalized to mean=1) - mark-weighted
 estimate_circadian_baseline_marks <- function(day_events, bin_size) {
   n_bins <- 1440 / bin_size
-  day_events <- day_events %>%
-    mutate(bin_idx = pmin(floor((start - 1) / bin_size) + 1, n_bins))
+  bin_idx <- pmin(floor((day_events$start - 1) / bin_size) + 1, n_bins)
+  bin_rates <- sum_by_group(day_events$mark_norm, bin_idx, n_bins)
 
-  bin_marks <- day_events %>%
-    group_by(bin_idx) %>%
-    summarise(total_marks = sum(mark_norm), .groups = "drop")
-
-  bin_rates <- rep(0, n_bins)
-  bin_rates[bin_marks$bin_idx] <- bin_marks$total_marks
-
-  observed_bins <- which(bin_rates > 0)
-  bin_rates <- bin_rates / mean(bin_rates[observed_bins])
+  bin_rates <- bin_rates / mean(bin_rates)
 
   attr(bin_rates, "bin_size") <- bin_size
   return(bin_rates)
@@ -59,56 +53,45 @@ estimate_circadian_baseline_marks <- function(day_events, bin_size) {
 
 # Dispersion for single day
 compute_dispersion_single_day <- function(day_events, circadian_rates, circadian_rates_marks, window_sizes, bin_size) {
-  n_bins <- length(circadian_rates)
+  event_starts <- day_events$start
+  event_marks <- day_events$mark_norm
   day_start <- min(day_events$start)
-  obs_period <- max(day_events$start) - day_start
-
-  # Add bin_idx
-  day_events <- day_events %>%
-    mutate(
-      bin_idx = pmin(floor((start - 1) / bin_size) + 1, n_bins)
-    )
+  day_end <- max(day_events$start)
+  obs_len <- day_end - day_start + 1
+  n_bins <- length(circadian_rates)
+  bin_idx_all <- pmin(floor((event_starts - 1) / bin_size) + 1, n_bins)
 
   results <- list()
   for (W in window_sizes) {
-    if (obs_period < W) next
-    n_windows <- floor(obs_period / W)
+    if (obs_len < W) next
+    n_windows <- floor(obs_len / W)
     if (n_windows < 3) next
 
-    window_stats <- day_events %>%
-      mutate(window_idx = pmin(floor((start - day_start) / W) + 1, n_windows)) %>%
-      filter(window_idx <= n_windows) %>%
-      group_by(window_idx) %>%
-      summarise(
-        raw_count = n(),
-        raw_marks = sum(mark_norm),  # sum of normalized marks
-        mu_window = mean(circadian_rates[bin_idx]),
-        mu_window_marks = mean(circadian_rates_marks[bin_idx]),
-        adj_count = raw_count / mu_window,
-        adj_marks = raw_marks / mu_window,  # Use count-based rate to preserve intensity variation 
-        .groups = "drop"
-      )
+    window_idx_all <- floor((event_starts - day_start) / W) + 1
+    valid_events <- window_idx_all >= 1 & window_idx_all <= n_windows
+    window_idx <- window_idx_all[valid_events]
 
-    all_windows <- data.frame(window_idx = 1:n_windows) %>%
-      left_join(window_stats, by = "window_idx") %>%
-      mutate(
-        raw_count = ifelse(is.na(raw_count), 0, raw_count),
-        raw_marks = ifelse(is.na(raw_marks), 0, raw_marks),
-        adj_count = ifelse(is.na(adj_count), 0, adj_count),
-        adj_marks = ifelse(is.na(adj_marks), 0, adj_marks)
-      )
+    raw_count <- tabulate(window_idx, nbins = n_windows)
+    raw_marks <- sum_by_group(event_marks[valid_events], window_idx, n_windows)
+
+    mu_window <- rep(NA_real_, n_windows)
+    mu_vals <- tapply(circadian_rates[bin_idx_all[valid_events]], window_idx, mean)
+    mu_window[as.integer(names(mu_vals))] <- as.numeric(mu_vals)
+
+    adj_count <- ifelse(!is.na(mu_window) & mu_window > 0, raw_count / mu_window, 0)
+    adj_marks <- ifelse(!is.na(mu_window) & mu_window > 0, raw_marks / mu_window, 0)
 
     # D_raw: count-based (each event = 1)
-    D_raw <- var(all_windows$raw_count) / mean(all_windows$raw_count)
+    D_raw <- var(raw_count) / mean(raw_count)
 
     # D_marks: mark-based without circadian adjustment
-    D_marks <- var(all_windows$raw_marks) / mean(all_windows$raw_marks)
+    D_marks <- var(raw_marks) / mean(raw_marks)
 
     # D_adj
-    D_adj <- var(all_windows$adj_count) / mean(all_windows$adj_count)
+    D_adj <- var(adj_count) / mean(adj_count)
 
     # D_adj_marks
-    D_adj_marks <- var(all_windows$adj_marks) / mean(all_windows$adj_marks)
+    D_adj_marks <- var(adj_marks) / mean(adj_marks)
 
     results[[as.character(W)]] <- data.frame(
       window_size = W, D_raw = D_raw, D_marks = D_marks, D_adj = D_adj, D_adj_marks = D_adj_marks
@@ -118,14 +101,24 @@ compute_dispersion_single_day <- function(day_events, circadian_rates, circadian
 }
 
 # Per day then average (circadian computed per day)
-compute_dispersion <- function(events_df, window_sizes, bin_size) {
+compute_dispersion <- function(day_events_list, window_sizes, bin_size) {
 
-  day_results <- lapply(unique(events_df$WEEKDAY), function(day) {
-    day_events <- events_df %>% filter(WEEKDAY == day)
+  day_results <- lapply(day_events_list, function(day_events) {
     circadian_rates <- estimate_circadian_baseline(day_events, bin_size)
     circadian_rates_marks <- estimate_circadian_baseline_marks(day_events, bin_size)
     compute_dispersion_single_day(day_events, circadian_rates, circadian_rates_marks, window_sizes, bin_size)
   })
+
+  day_results <- Filter(function(x) nrow(x) > 0, day_results)
+  if (length(day_results) == 0) {
+    return(data.frame(
+      window_size = numeric(0),
+      D_raw = numeric(0),
+      D_marks = numeric(0),
+      D_adj = numeric(0),
+      D_adj_marks = numeric(0)
+    ))
+  }
 
   bind_rows(day_results) %>%
     group_by(window_size) %>%
@@ -156,36 +149,47 @@ active_events <- event_analysis %>%
   ) %>%
   ungroup()
 
-seqn_list <- unique(active_events$SEQN)
-cat("n_participants:", length(seqn_list), "\n")
+daily_subject_metrics <- active_events %>%
+  group_by(SEQN, WEEKDAY) %>%
+  summarise(
+    Q_day = mean(mark_norm^2) / mean(mark_norm),
+    n_events = n(),
+    sum_marks = sum(mark_norm),
+    obs_period = max(start) - min(start) + 1,
+    .groups = "drop"
+  ) %>%
+  mutate(
+    obs_hours = obs_period / 60,
+    lambda_count_day = n_events / obs_hours,
+    lambda_marks_day = sum_marks / obs_hours
+  )
 
-dispersion_results <- lapply(seqn_list, function(seqn) {
-  person_events <- active_events %>% filter(SEQN == seqn)
+person_metrics <- daily_subject_metrics %>%
+  group_by(SEQN) %>%
+  summarise(
+    Q = mean(Q_day, na.rm = TRUE),
+    lambda_count = mean(lambda_count_day, na.rm = TRUE),
+    lambda_marks = mean(lambda_marks_day, na.rm = TRUE),
+    .groups = "drop"
+  )
 
-  person_disp <- compute_dispersion(person_events, window_sizes, circadian_bin_size)
-  person_disp$SEQN <- seqn
+person_events_list <- split(active_events, active_events$SEQN, drop = TRUE)
+cat("n_participants:", length(person_events_list), "\n")
 
-  # Compute Q = E[m^2]/E[m] per day, then average across days
-  daily_Q <- sapply(unique(person_events$WEEKDAY), function(day) {
-    day_events <- person_events %>% filter(WEEKDAY == day)
-    m <- day_events$mark_norm
-    mean(m^2) / mean(m)
-  })
-  Q <- mean(daily_Q, na.rm = TRUE)
-  person_disp$Q <- Q
-
-  # Uncorrected branching ratios
-  person_disp$n_raw <- branching_ratio(person_disp$D_raw)
-  person_disp$n_adj <- branching_ratio(person_disp$D_adj)
-
-  # Q-corrected branching ratios for marks: n = 1 - sqrt(Q/D)
-  person_disp$n_marks <- 1 - sqrt(Q / person_disp$D_marks)
-  person_disp$n_adj_marks <- 1 - sqrt(Q / person_disp$D_adj_marks)
-
+dispersion_results <- lapply(person_events_list, function(person_events) {
+  person_disp <- compute_dispersion(split(person_events, person_events$WEEKDAY, drop = TRUE), window_sizes, circadian_bin_size)
+  person_disp$SEQN <- person_events$SEQN[[1]]
   person_disp
 })
 
-dispersion_df <- bind_rows(dispersion_results)
+dispersion_df <- bind_rows(dispersion_results) %>%
+  left_join(select(person_metrics, SEQN, Q), by = "SEQN") %>%
+  mutate(
+    n_raw = branching_ratio(D_raw),
+    n_adj = branching_ratio(D_adj),
+    n_marks = 1 - sqrt(Q / D_marks),
+    n_adj_marks = 1 - sqrt(Q / D_adj_marks)
+  )
 
 #### 4 Window Size Sensitivity ####
 window_sensitivity <- dispersion_df %>%
@@ -237,56 +241,11 @@ ggsave("Output/dispersion/hip_windows.pdf", p_windows, width = 10, height = 6)
 ggsave("Output/dispersion/wrist_windows.pdf", p_windows, width = 10, height = 6)
 
 #### 5 Create Summary and Save ####
-window_diagnostics <- active_events %>%
-    group_by(SEQN, WEEKDAY) %>%
-    summarise(
-      obs_period = max(start) - min(start),
-      n_events = n(),
-      .groups = "drop"
-    ) %>%
-    mutate(
-      windows_90 = floor(obs_period / 90),
-      windows_60 = floor(obs_period / 60),
-      events_per_window_90 = n_events / windows_90,
-      events_per_window_60 = n_events / windows_60
-    )
-
-summary(window_diagnostics[, c("events_per_window_90", "events_per_window_60")])
-
 primary_window <- 30
 
 dispersion_summary <- dispersion_df %>%
   filter(window_size == primary_window) %>%
-  mutate(
-    # Compute raw event rate λ (events per hour)
-    lambda_count = sapply(SEQN, function(id) {
-      person_events <- active_events %>% filter(SEQN == id)
-
-      daily_rates <- sapply(unique(person_events$WEEKDAY), function(day) {
-        day_events <- person_events %>% filter(WEEKDAY == day)
-        n_events <- nrow(day_events)
-        obs_period <- max(day_events$start) - min(day_events$start)  # in minutes
-        obs_hours <- obs_period / 60  # convert to hours
-        n_events / obs_hours
-      })
-
-      mean(daily_rates, na.rm = TRUE)  # average across days
-    }),
-    # Compute raw mark rate λ_marks (sum of normalized marks per hour)
-    lambda_marks = sapply(SEQN, function(id) {
-      person_events <- active_events %>% filter(SEQN == id)
-
-      daily_rates <- sapply(unique(person_events$WEEKDAY), function(day) {
-        day_events <- person_events %>% filter(WEEKDAY == day)
-        sum_marks <- sum(day_events$mark_norm)
-        obs_period <- max(day_events$start) - min(day_events$start)  # in minutes
-        obs_hours <- obs_period / 60  # convert to hours
-        sum_marks / obs_hours
-      })
-
-      mean(daily_rates, na.rm = TRUE)  # average across days
-    })
-  ) %>%
+  left_join(select(person_metrics, SEQN, lambda_count, lambda_marks), by = "SEQN") %>%
   mutate(
     # Immigration rates using Hawkes relationship: μ* = λ(1-n)
     # 4 versions to match 4 versions of n

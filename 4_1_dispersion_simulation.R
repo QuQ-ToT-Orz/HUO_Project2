@@ -8,21 +8,22 @@ library(emhawkes)  # For proper Hawkes simulation
 set.seed(42)
 
 #### 1 Copy Core Functions from 4_Dispersion_index.R ####
+# drop + inclusive + all-bin normalization + event-time mu + adj_marks uses mu_window
+sum_by_group <- function(values, group_idx, n_groups) {
+  totals <- numeric(n_groups)
+  if (length(values) == 0) return(totals)
+
+  grouped_sums <- tapply(values, group_idx, sum)
+  totals[as.integer(names(grouped_sums))] <- as.numeric(grouped_sums)
+  totals
+}
 
 estimate_circadian_baseline <- function(day_events, bin_size) {
   n_bins <- 1440 / bin_size
-  day_events <- day_events %>%
-    mutate(bin_idx = pmin(floor((start - 1) / bin_size) + 1, n_bins))
+  bin_idx <- pmin(floor((day_events$start - 1) / bin_size) + 1, n_bins)
+  bin_rates <- tabulate(bin_idx, nbins = n_bins)
 
-  bin_counts <- day_events %>%
-    group_by(bin_idx) %>%
-    summarise(count = n(), .groups = "drop")
-
-  bin_rates <- rep(0, n_bins)
-  bin_rates[bin_counts$bin_idx] <- bin_counts$count
-
-  observed_bins <- which(bin_rates > 0)
-  bin_rates <- bin_rates / mean(bin_rates[observed_bins])
+  bin_rates <- bin_rates / mean(bin_rates)
 
   attr(bin_rates, "bin_size") <- bin_size
   return(bin_rates)
@@ -30,18 +31,10 @@ estimate_circadian_baseline <- function(day_events, bin_size) {
 
 estimate_circadian_baseline_marks <- function(day_events, bin_size) {
   n_bins <- 1440 / bin_size
-  day_events <- day_events %>%
-    mutate(bin_idx = pmin(floor((start - 1) / bin_size) + 1, n_bins))
+  bin_idx <- pmin(floor((day_events$start - 1) / bin_size) + 1, n_bins)
+  bin_rates <- sum_by_group(day_events$mark_norm, bin_idx, n_bins)
 
-  bin_marks <- day_events %>%
-    group_by(bin_idx) %>%
-    summarise(total_marks = sum(mark_norm), .groups = "drop")
-
-  bin_rates <- rep(0, n_bins)
-  bin_rates[bin_marks$bin_idx] <- bin_marks$total_marks
-
-  observed_bins <- which(bin_rates > 0)
-  bin_rates <- bin_rates / mean(bin_rates[observed_bins])
+  bin_rates <- bin_rates / mean(bin_rates)
 
   attr(bin_rates, "bin_size") <- bin_size
   return(bin_rates)
@@ -49,49 +42,38 @@ estimate_circadian_baseline_marks <- function(day_events, bin_size) {
 
 compute_dispersion_single_day <- function(day_events, circadian_rates, circadian_rates_marks,
                                           window_sizes, bin_size, obs_start, obs_end) {
-  n_bins <- length(circadian_rates)
-  # Use fixed observation period instead of data-driven
+  event_starts <- day_events$start
+  event_marks <- day_events$mark_norm
   day_start <- obs_start
-  obs_period <- obs_end - obs_start
-
-  day_events <- day_events %>%
-    mutate(bin_idx = pmin(floor((start - 1) / bin_size) + 1, n_bins))
+  day_end <- obs_end - 1
+  obs_len <- day_end - day_start + 1
+  n_bins <- length(circadian_rates)
+  bin_idx_all <- pmin(floor((event_starts - 1) / bin_size) + 1, n_bins)
 
   results <- list()
   for (W in window_sizes) {
-    if (obs_period < W) next
-    n_windows <- floor(obs_period / W)
+    if (obs_len < W) next
+    n_windows <- floor(obs_len / W)
     if (n_windows < 3) next
 
-    window_stats <- day_events %>%
-      mutate(window_idx = pmin(floor((start - day_start) / W) + 1, n_windows)) %>%
-      filter(window_idx >= 1, window_idx <= n_windows) %>%
-      group_by(window_idx) %>%
-      summarise(
-        raw_count = n(),
-        raw_marks = sum(mark_norm),
-        mu_window = mean(circadian_rates[bin_idx]),
-        mu_window_marks = mean(circadian_rates_marks[bin_idx]),
-        adj_count = raw_count / mu_window,
-        adj_marks = raw_marks / mu_window,
-        .groups = "drop"
-      )
+    window_idx_all <- floor((event_starts - day_start) / W) + 1
+    valid_events <- window_idx_all >= 1 & window_idx_all <= n_windows
+    window_idx <- window_idx_all[valid_events]
 
-    all_windows <- data.frame(window_idx = 1:n_windows) %>%
-      left_join(window_stats, by = "window_idx") %>%
-      mutate(
-        raw_count = ifelse(is.na(raw_count), 0, raw_count),
-        raw_marks = ifelse(is.na(raw_marks), 0, raw_marks),
-        adj_count = ifelse(is.na(adj_count), 0, adj_count),
-        adj_marks = ifelse(is.na(adj_marks), 0, adj_marks)
-      )
+    raw_count <- tabulate(window_idx, nbins = n_windows)
+    raw_marks <- sum_by_group(event_marks[valid_events], window_idx, n_windows)
 
-    # Population variance (n denominator) for comparison against theoretical D
-    pop_var <- function(x) mean((x - mean(x))^2)
-    D_raw <- pop_var(all_windows$raw_count) / mean(all_windows$raw_count)
-    D_marks <- pop_var(all_windows$raw_marks) / mean(all_windows$raw_marks)
-    D_adj <- pop_var(all_windows$adj_count) / mean(all_windows$adj_count)
-    D_adj_marks <- pop_var(all_windows$adj_marks) / mean(all_windows$adj_marks)
+    mu_window <- rep(NA_real_, n_windows)
+    mu_vals <- tapply(circadian_rates[bin_idx_all[valid_events]], window_idx, mean)
+    mu_window[as.integer(names(mu_vals))] <- as.numeric(mu_vals)
+
+    adj_count <- ifelse(!is.na(mu_window) & mu_window > 0, raw_count / mu_window, 0)
+    adj_marks <- ifelse(!is.na(mu_window) & mu_window > 0, raw_marks / mu_window, 0)
+
+    D_raw <- var(raw_count) / mean(raw_count)
+    D_marks <- var(raw_marks) / mean(raw_marks)
+    D_adj <- var(adj_count) / mean(adj_count)
+    D_adj_marks <- var(adj_marks) / mean(adj_marks)
 
     results[[as.character(W)]] <- data.frame(
       window_size = W, D_raw = D_raw, D_marks = D_marks, D_adj = D_adj, D_adj_marks = D_adj_marks
@@ -101,13 +83,23 @@ compute_dispersion_single_day <- function(day_events, circadian_rates, circadian
 }
 
 compute_dispersion <- function(events_df, window_sizes, bin_size, obs_start = 480, obs_end = 1320) {
-  day_results <- lapply(unique(events_df$WEEKDAY), function(day) {
-    day_events <- events_df %>% filter(WEEKDAY == day)
+  day_results <- lapply(split(events_df, events_df$WEEKDAY, drop = TRUE), function(day_events) {
     circadian_rates <- estimate_circadian_baseline(day_events, bin_size)
     circadian_rates_marks <- estimate_circadian_baseline_marks(day_events, bin_size)
     compute_dispersion_single_day(day_events, circadian_rates, circadian_rates_marks,
                                   window_sizes, bin_size, obs_start, obs_end)
   })
+
+  day_results <- Filter(function(x) nrow(x) > 0, day_results)
+  if (length(day_results) == 0) {
+    return(data.frame(
+      window_size = numeric(0),
+      D_raw = numeric(0),
+      D_marks = numeric(0),
+      D_adj = numeric(0),
+      D_adj_marks = numeric(0)
+    ))
+  }
 
   bind_rows(day_results) %>%
     group_by(window_size) %>%
@@ -265,8 +257,8 @@ cat("=== Simulation Tests for Dispersion Index Functions ===\n\n")
 n_participants <- 50
 n_days <- 7
 rate_per_hour <- 20
-window_sizes <- c(5, 10, 15, 30, 45, 60, 90, 120)
-bin_size <- 30
+window_sizes <- c(5, 10, 15, 30, 45, 60, 75, 90, 120)
+bin_size <- 120
 
 # Test 1: Poisson (uniform) process - expected D ≈ 1, n ≈ 0
 cat("Test 1: Poisson Process (evenly distributed)\n")
@@ -380,31 +372,26 @@ clustered_summary
 regular_summary
 '''
 === Simulation Tests for Dispersion Index Functions ===
-
 Test 1: Poisson Process (evenly distributed)
 Expected: D ≈ 1, n ≈ 0
 Generated 98267 events for 50 participants
 Mean events per day: 280.7629 
-
 
 Test 2: Clustered Process (Hawkes-like)
 Expected: D > 1, n > 0 (clustering)
 Generated 98830 events
 Mean events per day: 282.3714 
 
-
-Test 3: Regular Process (evenly spaced)
-Expected: D < 1, n < 0 (regularity)
-
-# A tibble: 8 × 4
+# A tibble: 9 × 4
   window_size mean_D_raw sd_D_raw mean_n_raw
         <dbl>      <dbl>    <dbl>      <dbl>
-1           5       1.96    0.175      0.284
-2          10       2.79    0.341      0.398
-3          15       3.46    0.492      0.459
-4          30       5.04    0.883      0.550
-5          45       5.86    1.12       0.582
-6          60       6.56    1.50       0.603
-7          90       6.90    1.81       0.611
-8         120       7.61    2.45       0.626
+1           5       1.97    0.176      0.286
+2          10       2.82    0.345      0.402
+3          15       3.53    0.501      0.464
+4          30       5.22    0.916      0.558
+5          45       6.06    1.18       0.589
+6          60       7.06    1.62       0.617
+7          75       7.55    1.88       0.629
+8          90       7.67    2.01       0.631
+9         120       8.88    2.86       0.653
 '''

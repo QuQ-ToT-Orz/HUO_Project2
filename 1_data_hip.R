@@ -653,9 +653,6 @@ criteria_vec <- c(
   "(table_dat$SEQN %in% nms_rm)", # too few "good" days of accelerometery data
   "((!table_dat$eligstat %in% 1) | is.na(table_dat$mortstat) | is.na(table_dat$permth_exm) | table_dat$ucod_leading %in% \"004\")",
   # missing mortality data, or accidental death
-  "(table_dat$mortstat == 0 & table_dat$permth_exm/12 < 5)",
-  # less than 5 years of follow up with no mortality
-
   "(is.na(table_dat$SYS) | (is.na(table_dat$LBXTC)) | (is.na(table_dat$LBDHDD)) )"
   # missing lab measures
 )
@@ -669,7 +666,7 @@ for (i in seq_along(criteria_vec)) {
     rm(list = c("miss_cur"))
   }
 }
-names_spaced <- c("BMI", "Education", "Bad Accel Data", "Mortality", "Follow-up", "Lab")
+names_spaced <- c("BMI", "Education", "Bad Accel Data", "Mortality", "Lab")
 rownames(tab_miss) <- colnames(tab_miss) <- names_spaced
 
 # missing BMI or education predictor variables :
@@ -678,10 +675,8 @@ tab_miss[1, 1] + tab_miss[2, 2]
 tab_miss[3, 3]
 # missing mortality information
 tab_miss[4, 4]
-# alive with follow up less than 5 years
-tab_miss[5, 5]
 # missing systolic blood pressure, total cholesterol or HDL cholesterol  measurements
-tab_miss[6, 6]
+tab_miss[5, 5]
 
 ## add in column indicating exclusion:
 ## Exclude = 1 indicates an individual does not meet our inclusion criteria
@@ -705,10 +700,6 @@ flowchart_counts_hip <- list(
       is.na(table_dat$mortstat) |
       is.na(table_dat$permth_exm) |
       (table_dat$ucod_leading %in% "004"),
-    na.rm = TRUE
-  ),
-  n_short_followup = sum(
-    table_dat$mortstat == 0 & (table_dat$permth_exm / 12 < 5),
     na.rm = TRUE
   ),
   n_missing_lab = sum(

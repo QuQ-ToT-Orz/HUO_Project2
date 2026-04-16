@@ -46,12 +46,6 @@ extract_step1_counts <- function(AllAct, table_dat, nms_rm) {
       na.rm = TRUE
     ),
 
-    # Alive with <5 years follow-up
-    n_short_followup = sum(
-      table_dat$mortstat == 0 & (table_dat$permth_exm / 12 < 5),
-      na.rm = TRUE
-    ),
-
     # Missing lab measures (SYS, total cholesterol, HDL)
     n_missing_lab = sum(
       is.na(table_dat$SYS) | is.na(table_dat$LBXTC) | is.na(table_dat$LBDHDD),
@@ -131,7 +125,6 @@ create_full_flowchart <- function(
     n_missing_edu = NA,
     n_bad_accel = NA,
     n_missing_mort = NA,
-    n_short_followup = NA,
     n_missing_lab = NA,
     n_step1_final = NA,
     # Step 2 counts (from 2_Preprocessing.R)
@@ -200,7 +193,6 @@ create_full_flowchart <- function(
           <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="9">• &lt;7 days with ≥10h wear time: %s</FONT></TD></TR>
           <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="9">• Ineligible for mortality linkage,</FONT></TD></TR>
           <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="9">  missing mortality, or accidental death: %s</FONT></TD></TR>
-          <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="9">• Alive with &lt;5 years follow-up: %s</FONT></TD></TR>
           <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="9">• Missing lab measures (SBP/TC/HDL): %s</FONT></TD></TR>
         </TABLE>>,
         shape = rectangle,
@@ -286,7 +278,6 @@ create_full_flowchart <- function(
   format(n_missing_edu, big.mark = ","),
   format(n_bad_accel, big.mark = ","),
   format(n_missing_mort, big.mark = ","),
-  format(n_short_followup, big.mark = ","),
   format(n_missing_lab, big.mark = ","),
   # Step 2 input
   format(n_step1_final, big.mark = ","),
@@ -343,7 +334,6 @@ flowchart_hip <- create_full_flowchart(
   n_missing_edu = 6001,
   n_bad_accel = 10437,
   n_missing_mort = 5083,
-  n_short_followup = 0,
   n_missing_lab = 1976,
   n_step1_final = 2607,
   # Step 2 (2_Preprocessing.R)
@@ -363,14 +353,13 @@ flowchart_wrist <- create_full_flowchart(
   n_missing_edu = 1564,
   n_bad_accel = 2554,
   n_missing_mort = 1318,
-  n_short_followup = 18,
   n_missing_lab = 932,
-  n_step1_final = 3208,
+  n_step1_final = 3217,
   # Step 2 (2_Preprocessing.R)
-  n_after_daily_process = 3125,  # After process_daily_data()
-  n_after_spike_clean = 3125,    # After clean_events_spikes()
-  n_after_rle_filter = 3125,     # After filter_rle_data()
-  n_final = 3125                 # After intersect() alignment
+  n_after_daily_process = 3132,  # After process_daily_data()
+  n_after_spike_clean = 3132,    # After clean_events_spikes()
+  n_after_rle_filter = 3132,     # After filter_rle_data()
+  n_final = 3132                 # After intersect() alignment
 )
 
 # Display
@@ -386,7 +375,7 @@ print(flowchart_wrist)
 # 1_data_hip.R (line 696-720):
 #    - flowchart_counts_hip with: n_initial, n_excluded_age, n_after_age,
 #      n_missing_bmi, n_missing_edu, n_bad_accel, n_missing_mort,
-#      n_short_followup, n_missing_lab, n_step1_final
+#      n_missing_lab, n_step1_final
 #
 # 1_data_wrist.R (line 585-609):
 #    - flowchart_counts_wrist with same fields as hip
