@@ -28,7 +28,7 @@ devtools::install_local("./HUO", force = TRUE, dependencies = TRUE)
 - **n = α/β**: Branching ratio - average number of triggered events per spontaneous event
 
 ### Dispersion-Based Metrics
-- **D**: Dispersion index (variance-to-mean ratio of event counts) are adjusted for circadian rhythm using 3h bin normalization to avoid confounding time-of-day effects with true clustering.
+- **D**: Dispersion index (variance-to-mean ratio of event counts) are adjusted for circadian rhythm using 2h bin normalization to avoid confounding time-of-day effects with true clustering.
 - **n = 1 - 1/√D**: Branching ratio derived from dispersion
 - **μ\***: Immigration rate 
 
