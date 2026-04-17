@@ -379,7 +379,9 @@ validate_multi_series_shared <- function(times_list, marks_list,
 
   # Calculate overall mean marks across all series for shared alpha
   overall_mean_marks <- mean(unlist(marks_list))
-  alpha <- 0.3 * beta / overall_mean_marks
+  if (is.null(alpha)) {
+    alpha <- 0.3 * beta / overall_mean_marks
+  }
 
   # Validate parameter types
   if (!is.numeric(alpha) || !is.numeric(beta) || !is.numeric(mu)) {

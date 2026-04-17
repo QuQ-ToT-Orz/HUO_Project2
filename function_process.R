@@ -2,6 +2,7 @@
 perform_hawkes_grid_search <- function(times_data = NULL, marks_data = NULL, events_data = NULL,
                                       times_list = NULL, marks_list = NULL, events_list = NULL,
                                       a_par_values = c(-2, -1, 0, 1, 2),
+                                      ratio_values = c(0.1, 0.3, 0.5, 0.7),
                                       mu_values = c(1, 0.5),
                                       beta_values = c(0.1, 1),
                                       model = 1,
@@ -10,14 +11,24 @@ perform_hawkes_grid_search <- function(times_data = NULL, marks_data = NULL, eve
   fit_function <- match.arg(fit_function)
   best_fit <- NULL
   best_objective <- Inf
-  best_params <- list(a_par = NA, mu_mult = NA, beta_mult = NA)
+  best_params <- list(
+    excitation = NA,
+    excitation_type = NA,
+    ratio = NA,
+    a_par = NA,
+    mu_mult = NA,
+    beta_mult = NA
+  )
   
   # Determine if this is multi-series or single-series
   is_multi_series <- !is.null(times_list)
   is_multivariate <- grepl("mhawkes", fit_function)
   
   # Loop through all parameter combinations
-  for (i in seq_along(a_par_values)) {
+  excitation_values <- if (model == 1) ratio_values else a_par_values
+  excitation_name <- if (model == 1) "ratio" else "a_par"
+
+  for (i in seq_along(excitation_values)) {
     for (j in seq_along(mu_values)) {
       for (k in seq_along(beta_values)) {
         try({
@@ -25,13 +36,19 @@ perform_hawkes_grid_search <- function(times_data = NULL, marks_data = NULL, eve
             # Single-series marked Hawkes
             mu_val <- mu_values[j] * mean(length(times_data) / max(times_data))
             beta_val <- beta_values[k] / median(diff(times_data))
+            mean_marks <- mean(marks_data)
+            alpha_val <- if (model == 1) {
+              excitation_values[i] * beta_val / mean_marks
+            } else {
+              excitation_values[i]
+            }
             
             fit_candidate <- fit_hawkes(
               times = times_data,
               marks = marks_data,
               parameters = list(
                 mu = mu_val,
-                alpha = a_par_values[i],
+                alpha = alpha_val,
                 beta = beta_val
               ),
               model = model
@@ -41,6 +58,12 @@ perform_hawkes_grid_search <- function(times_data = NULL, marks_data = NULL, eve
             # Multi-series marked Hawkes
             mu_val <- mu_values[j] * mean(sapply(times_list, function(x) length(x) / max(x)))
             beta_val <- beta_values[k] / median(unlist(lapply(times_list, function(x) diff(x))))
+            overall_mean_marks <- mean(unlist(marks_list))
+            alpha_val <- if (model == 1) {
+              excitation_values[i] * beta_val / overall_mean_marks
+            } else {
+              excitation_values[i]
+            }
             
             fit_candidate <- fit_hawkes_multi_series(
               times_list = times_list,
@@ -48,7 +71,7 @@ perform_hawkes_grid_search <- function(times_data = NULL, marks_data = NULL, eve
               model = model,
               parameters = list(
                 mu = mu_val,
-                alpha = a_par_values[i],
+                alpha = alpha_val,
                 beta = beta_val
               )
             )
@@ -61,7 +84,10 @@ perform_hawkes_grid_search <- function(times_data = NULL, marks_data = NULL, eve
             best_objective <- fit_candidate$objective
             best_fit <- fit_candidate
             best_params <- list(
-              a_par = a_par_values[i],
+              excitation = excitation_values[i],
+              excitation_type = excitation_name,
+              ratio = if (excitation_name == "ratio") excitation_values[i] else NA,
+              a_par = if (excitation_name == "a_par") excitation_values[i] else NA,
               mu_mult = mu_values[j],
               beta_mult = beta_values[k]
             )
@@ -73,6 +99,9 @@ perform_hawkes_grid_search <- function(times_data = NULL, marks_data = NULL, eve
   
   # Add best parameters to fit object
   if (!is.null(best_fit)) {
+    best_fit$best_excitation_init <- best_params$excitation
+    best_fit$best_excitation_type <- best_params$excitation_type
+    best_fit$best_ratio_init <- best_params$ratio
     best_fit$best_a_par_init <- best_params$a_par
     best_fit$best_mu_mult_init <- best_params$mu_mult
     best_fit$best_beta_mult_init <- best_params$beta_mult
@@ -175,11 +204,14 @@ process_run_marked <- function(
         std_errors = NULL,
         pdHess = FALSE,
         penalty_coef = penalty_coef,
+        best_excitation_init = NA,
+        best_excitation_type = NA,
+        best_ratio_init = NA,
         best_a_par_init = NA
       ))
     }
 
-    # best_a_par_init is already set by the helper function
+    # Best initialization metadata is already set by the helper function
     results <- check_conv(best_fit)
 
     # Get KS statistics
@@ -195,6 +227,9 @@ process_run_marked <- function(
       std_errors = results$std_errors,
       pdHess = results$converged,
       penalty_coef = penalty_coef,
+      best_excitation_init = best_fit$best_excitation_init,
+      best_excitation_type = best_fit$best_excitation_type,
+      best_ratio_init = best_fit$best_ratio_init,
       best_a_par_init = best_fit$best_a_par_init,
       ks_D = ks_D,
       ia_mean = ia_mean,
@@ -231,11 +266,14 @@ process_run_marked <- function(
         std_errors = NULL,
         pdHess = FALSE,
         penalty_coef = penalty_coef,
+        best_excitation_init = NA,
+        best_excitation_type = NA,
+        best_ratio_init = NA,
         best_a_par_init = NA
       ))
     }
 
-    # best_a_par_init is already set by the helper function
+    # Best initialization metadata is already set by the helper function
     results_all_days <- check_conv(best_fit)
 
     # Get KS statistics (per_series = TRUE for multi-series)
@@ -252,6 +290,9 @@ process_run_marked <- function(
       std_errors = results_all_days$std_errors,
       pdHess = results_all_days$converged,
       penalty_coef = penalty_coef,
+      best_excitation_init = best_fit$best_excitation_init,
+      best_excitation_type = best_fit$best_excitation_type,
+      best_ratio_init = best_fit$best_ratio_init,
       best_a_par_init = best_fit$best_a_par_init,
       ks_D = ks_D,
       ks_per_series = ks_per_series,
@@ -325,6 +366,10 @@ process_fits_data <- function(fits_list) {
     ks_D <- if (!is.null(fit$ks_D)) fit$ks_D else NA
     ia_mean <- if (!is.null(fit$ia_mean)) fit$ia_mean else NA
     ia_sd <- if (!is.null(fit$ia_sd)) fit$ia_sd else NA
+    best_excitation_init <- if (!is.null(fit$best_excitation_init)) fit$best_excitation_init else NA
+    best_excitation_type <- if (!is.null(fit$best_excitation_type)) fit$best_excitation_type else NA
+    best_ratio_init <- if (!is.null(fit$best_ratio_init)) fit$best_ratio_init else NA
+    best_a_par_init <- if (!is.null(fit$best_a_par_init)) fit$best_a_par_init else NA
 
     # Extract raw parameters
     log_mu <- get_param_by_name(params, "log_mu")
@@ -342,6 +387,9 @@ process_fits_data <- function(fits_list) {
       mu_se = mu_se, alpha_se = alpha_se, beta_se = beta_se,
       pdHess = fit$pdHess,
       ks_D = ks_D, ia_mean = ia_mean, ia_sd = ia_sd,
+      best_excitation_init = best_excitation_init,
+      best_excitation_type = best_excitation_type,
+      best_ratio_init = best_ratio_init, best_a_par_init = best_a_par_init,
       log_mu = log_mu, logit_abratio = logit_abratio, log_beta = log_beta,
       log_mu_se = log_mu_se, logit_abratio_se = logit_abratio_se, log_beta_se = log_beta_se,
       stringsAsFactors = FALSE
