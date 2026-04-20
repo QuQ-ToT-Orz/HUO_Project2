@@ -1,5 +1,5 @@
 #### 6 Dispersion Index Analysis ####
-# drop + inclusive + all-bin normalization + event-time mu + 
+# drop + inclusive + covered-segment-bin normalization + event-time mu + 
 # bin_size=120 + inclusive lambda + adj_marks uses mu_window #
 gc()
 rm(list = ls())
@@ -26,26 +26,42 @@ sum_by_group <- function(values, group_idx, n_groups) {
   totals
 }
 
+covered_bin_indices <- function(segment_start, segment_end, bin_size, n_bins) {
+  first_bin <- floor((segment_start - 1) / bin_size) + 1
+  last_bin <- floor((segment_end - 1) / bin_size) + 1
+
+  first_bin <- pmin(pmax(first_bin, 1), n_bins)
+  last_bin <- pmin(pmax(last_bin, 1), n_bins)
+
+  first_bin:last_bin
+}
+
 # Single-day circadian baseline (normalized to mean=1) - count-based
-estimate_circadian_baseline <- function(day_events, bin_size) {
+estimate_circadian_baseline <- function(day_events, bin_size,
+                                        segment_start = min(day_events$start),
+                                        segment_end = max(day_events$start)) {
   n_bins <- 1440 / bin_size
   bin_idx <- pmin(floor((day_events$start - 1) / bin_size) + 1, n_bins)
   bin_rates <- tabulate(bin_idx, nbins = n_bins)
 
-  # Normalize across all bins so the daily expectation is properly distributed
-  bin_rates <- bin_rates / mean(bin_rates)
+  # Normalize across all bins covered by the observed segment, including zeros.
+  covered_bins <- covered_bin_indices(segment_start, segment_end, bin_size, n_bins)
+  bin_rates <- bin_rates / mean(bin_rates[covered_bins])
 
   attr(bin_rates, "bin_size") <- bin_size
   return(bin_rates)
 }
 
 # Single-day circadian baseline (normalized to mean=1) - mark-weighted
-estimate_circadian_baseline_marks <- function(day_events, bin_size) {
+estimate_circadian_baseline_marks <- function(day_events, bin_size,
+                                              segment_start = min(day_events$start),
+                                              segment_end = max(day_events$start)) {
   n_bins <- 1440 / bin_size
   bin_idx <- pmin(floor((day_events$start - 1) / bin_size) + 1, n_bins)
   bin_rates <- sum_by_group(day_events$mark_norm, bin_idx, n_bins)
 
-  bin_rates <- bin_rates / mean(bin_rates)
+  covered_bins <- covered_bin_indices(segment_start, segment_end, bin_size, n_bins)
+  bin_rates <- bin_rates / mean(bin_rates[covered_bins])
 
   attr(bin_rates, "bin_size") <- bin_size
   return(bin_rates)
@@ -104,8 +120,10 @@ compute_dispersion_single_day <- function(day_events, circadian_rates, circadian
 compute_dispersion <- function(day_events_list, window_sizes, bin_size) {
 
   day_results <- lapply(day_events_list, function(day_events) {
-    circadian_rates <- estimate_circadian_baseline(day_events, bin_size)
-    circadian_rates_marks <- estimate_circadian_baseline_marks(day_events, bin_size)
+    segment_start <- min(day_events$start)
+    segment_end <- max(day_events$start)
+    circadian_rates <- estimate_circadian_baseline(day_events, bin_size, segment_start, segment_end)
+    circadian_rates_marks <- estimate_circadian_baseline_marks(day_events, bin_size, segment_start, segment_end)
     compute_dispersion_single_day(day_events, circadian_rates, circadian_rates_marks, window_sizes, bin_size)
   })
 

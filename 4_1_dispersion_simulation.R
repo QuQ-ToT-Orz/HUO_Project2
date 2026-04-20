@@ -8,7 +8,7 @@ library(emhawkes)  # For proper Hawkes simulation
 set.seed(42)
 
 #### 1 Copy Core Functions from 4_Dispersion_index.R ####
-# drop + inclusive + all-bin normalization + event-time mu + adj_marks uses mu_window
+# drop + inclusive + covered-segment-bin normalization + event-time mu + adj_marks uses mu_window
 sum_by_group <- function(values, group_idx, n_groups) {
   totals <- numeric(n_groups)
   if (length(values) == 0) return(totals)
@@ -18,23 +18,39 @@ sum_by_group <- function(values, group_idx, n_groups) {
   totals
 }
 
-estimate_circadian_baseline <- function(day_events, bin_size) {
+covered_bin_indices <- function(segment_start, segment_end, bin_size, n_bins) {
+  first_bin <- floor((segment_start - 1) / bin_size) + 1
+  last_bin <- floor((segment_end - 1) / bin_size) + 1
+
+  first_bin <- pmin(pmax(first_bin, 1), n_bins)
+  last_bin <- pmin(pmax(last_bin, 1), n_bins)
+
+  first_bin:last_bin
+}
+
+estimate_circadian_baseline <- function(day_events, bin_size,
+                                        segment_start = min(day_events$start),
+                                        segment_end = max(day_events$start)) {
   n_bins <- 1440 / bin_size
   bin_idx <- pmin(floor((day_events$start - 1) / bin_size) + 1, n_bins)
   bin_rates <- tabulate(bin_idx, nbins = n_bins)
 
-  bin_rates <- bin_rates / mean(bin_rates)
+  covered_bins <- covered_bin_indices(segment_start, segment_end, bin_size, n_bins)
+  bin_rates <- bin_rates / mean(bin_rates[covered_bins])
 
   attr(bin_rates, "bin_size") <- bin_size
   return(bin_rates)
 }
 
-estimate_circadian_baseline_marks <- function(day_events, bin_size) {
+estimate_circadian_baseline_marks <- function(day_events, bin_size,
+                                              segment_start = min(day_events$start),
+                                              segment_end = max(day_events$start)) {
   n_bins <- 1440 / bin_size
   bin_idx <- pmin(floor((day_events$start - 1) / bin_size) + 1, n_bins)
   bin_rates <- sum_by_group(day_events$mark_norm, bin_idx, n_bins)
 
-  bin_rates <- bin_rates / mean(bin_rates)
+  covered_bins <- covered_bin_indices(segment_start, segment_end, bin_size, n_bins)
+  bin_rates <- bin_rates / mean(bin_rates[covered_bins])
 
   attr(bin_rates, "bin_size") <- bin_size
   return(bin_rates)
@@ -84,8 +100,8 @@ compute_dispersion_single_day <- function(day_events, circadian_rates, circadian
 
 compute_dispersion <- function(events_df, window_sizes, bin_size, obs_start = 480, obs_end = 1320) {
   day_results <- lapply(split(events_df, events_df$WEEKDAY, drop = TRUE), function(day_events) {
-    circadian_rates <- estimate_circadian_baseline(day_events, bin_size)
-    circadian_rates_marks <- estimate_circadian_baseline_marks(day_events, bin_size)
+    circadian_rates <- estimate_circadian_baseline(day_events, bin_size, obs_start, obs_end - 1)
+    circadian_rates_marks <- estimate_circadian_baseline_marks(day_events, bin_size, obs_start, obs_end - 1)
     compute_dispersion_single_day(day_events, circadian_rates, circadian_rates_marks,
                                   window_sizes, bin_size, obs_start, obs_end)
   })
@@ -370,28 +386,28 @@ ggsave("Output/dispersion/simulation.pdf", p1, width = 12, height = 8)
 poisson_summary
 clustered_summary
 regular_summary
-'''
-=== Simulation Tests for Dispersion Index Functions ===
-Test 1: Poisson Process (evenly distributed)
-Expected: D ≈ 1, n ≈ 0
-Generated 98267 events for 50 participants
-Mean events per day: 280.7629 
 
-Test 2: Clustered Process (Hawkes-like)
-Expected: D > 1, n > 0 (clustering)
-Generated 98830 events
-Mean events per day: 282.3714 
+# === Simulation Tests for Dispersion Index Functions ===
+# Test 1: Poisson Process (evenly distributed)
+# Expected: D ~= 1, n ~= 0
+# Generated 98267 events for 50 participants
+# Mean events per day: 280.7629
+#
+# Test 2: Clustered Process (Hawkes-like)
+# Expected: D > 1, n > 0 (clustering)
+# Generated 98830 events
+# Mean events per day: 282.3714
+#
+# Test 3: Regular Process (evenly spaced)
+# Expected: D < 1, n < 0 (regularity)
 
-# A tibble: 9 × 4
-  window_size mean_D_raw sd_D_raw mean_n_raw
-        <dbl>      <dbl>    <dbl>      <dbl>
-1           5       1.97    0.176      0.286
-2          10       2.82    0.345      0.402
-3          15       3.53    0.501      0.464
-4          30       5.22    0.916      0.558
-5          45       6.06    1.18       0.589
-6          60       7.06    1.62       0.617
-7          75       7.55    1.88       0.629
-8          90       7.67    2.01       0.631
-9         120       8.88    2.86       0.653
-'''
+# window_size mean_D_raw sd_D_raw mean_n_raw
+# 5             1.97       0.176    0.286
+# 10            2.82       0.345    0.402
+# 15            3.53       0.501    0.464
+# 30            5.22       0.916    0.558
+# 45            6.06       1.18     0.589
+# 60            7.06       1.62     0.617
+# 75            7.55       1.88     0.629
+# 90            7.67       2.01     0.631
+# 120           8.88       2.86     0.653
