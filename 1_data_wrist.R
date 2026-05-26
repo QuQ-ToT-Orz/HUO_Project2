@@ -548,6 +548,8 @@ criteria_vec <- c(
   "(table_dat$SEQN %in% nms_rm)", # too few "good" days of accelerometery data
   "((!table_dat$eligstat %in% 1) | is.na(table_dat$mortstat) | is.na(table_dat$permth_exm) | table_dat$ucod_leading %in% \"004\")",
   # missing mortality data, or accidental death
+  # "(table_dat$mortstat == 0 & table_dat$permth_exm/12 < 5)",
+  # less than 5 years of follow up with no mortality
   "(is.na(table_dat$SYS) | (is.na(table_dat$LBXTC)) | (is.na(table_dat$LBDHDD)) )"
   # missing lab measures
 )
