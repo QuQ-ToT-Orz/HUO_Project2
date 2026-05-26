@@ -9,6 +9,7 @@ library(survival)
 library(survminer)
 library(purrr)
 library(survey)
+library(compareC)
 
 #### 1 Load Data ####
 dir_path <- "./data/"
@@ -194,8 +195,72 @@ format_hr <- function(hr, ci_low, ci_high, p) {
   sprintf("%.3f (%.3f-%.3f)%s p=%.4f", hr, ci_low, ci_high, stars, p)
 }
 
+# Function to calculate C-index from a fitted Cox model
+# cvwrapr (Cross-validated, out-of-sample)
+calculate_c_index <- function(model, model_formula, data) {
+  model_vars <- all.vars(model_formula)
+  model_data <- data[complete.cases(data[, model_vars]), , drop = FALSE]
+  lp <- as.numeric(predict(model, newdata = model_data, type = "lp"))
+  concordance_fit <- survival::concordance(
+    Surv(surv_time, event) ~ lp,
+    data = model_data,
+    reverse = TRUE
+  )
+  
+  c_index <- concordance_fit$concordance
+  se <- sqrt(concordance_fit$var)
+  
+  list(
+    c_index = c_index,
+    se = se,
+    ci_low = c_index - 1.96 * se,
+    ci_high = c_index + 1.96 * se,
+    n = concordance_fit$n
+  )
+}
+
+format_c_index <- function(c_index, ci_low, ci_high) {
+  sprintf("%.3f (%.3f-%.3f)", c_index, ci_low, ci_high)
+}
+
+compare_c_index <- function(model_y, formula_y, model_z, formula_z, data) {
+  if (identical(model_y, model_z)) {
+    model_vars <- all.vars(formula_y)
+    model_data <- data[complete.cases(data[, model_vars]), , drop = FALSE]
+    return(list(diff = 0, se = 0, z = NA_real_, p = NA_real_, n = nrow(model_data)))
+  }
+  
+  model_vars <- union(all.vars(formula_y), all.vars(formula_z))
+  model_data <- data[complete.cases(data[, model_vars]), , drop = FALSE]
+  lp_y <- as.numeric(predict(model_y, newdata = model_data, type = "lp"))
+  lp_z <- as.numeric(predict(model_z, newdata = model_data, type = "lp"))
+  compare_fit <- compareC(
+    timeX = model_data$surv_time,
+    statusX = model_data$event,
+    scoreY = -lp_y,
+    scoreZ = -lp_z
+  )
+  
+  list(
+    diff = compare_fit$est.diff_c,
+    se = sqrt(compare_fit$est.vardiff_c),
+    z = compare_fit$zscore,
+    p = compare_fit$pval,
+    n = nrow(model_data)
+  )
+}
+
+format_compare_c <- function(compare_result) {
+  data.frame(
+    diff = compare_result$diff,
+    z = compare_result$z,
+    p = compare_result$p,
+    n = compare_result$n
+  )
+}
+
 # Run all models and collect results
-results_list <- lapply(n_versions, function(spec) {
+model_results <- lapply(n_versions, function(spec) {
   # Model 1
   f1 <- as.formula(paste0("Surv(surv_time, event) ~ ", spec$n, " + ", spec$lambda, basic_covars))
   m1 <- svycoxph(f1, design = survey_design)
@@ -212,27 +277,108 @@ results_list <- lapply(n_versions, function(spec) {
   r2_lambda <- extract_results(m2, spec$lambda, analysis_df)
   r2_peak30 <- extract_results(m2, "Peak30", analysis_df)
   
-  data.frame(
-    Method = spec$label,
-    n_M1 = format_hr(r1_n$hr, r1_n$ci_low, r1_n$ci_high, r1_n$p),
-    lambda_M1 = format_hr(r1_lambda$hr, r1_lambda$ci_low, r1_lambda$ci_high, r1_lambda$p),
-    n_M2 = format_hr(r2_n$hr, r2_n$ci_low, r2_n$ci_high, r2_n$p),
-    lambda_M2 = format_hr(r2_lambda$hr, r2_lambda$ci_low, r2_lambda$ci_high, r2_lambda$p),
-    Peak30_M2 = format_hr(r2_peak30$hr, r2_peak30$ci_low, r2_peak30$ci_high, r2_peak30$p)
+  c1 <- calculate_c_index(m1, f1, analysis_df)
+  c2 <- calculate_c_index(m2, f2, analysis_df)
+  c_m2_vs_m1 <- compare_c_index(m2, f2, m1, f1, analysis_df)
+  
+  list(
+    result = data.frame(
+      Method = spec$label,
+      n_M1 = format_hr(r1_n$hr, r1_n$ci_low, r1_n$ci_high, r1_n$p),
+      lambda_M1 = format_hr(r1_lambda$hr, r1_lambda$ci_low, r1_lambda$ci_high, r1_lambda$p),
+      n_M2 = format_hr(r2_n$hr, r2_n$ci_low, r2_n$ci_high, r2_n$p),
+      lambda_M2 = format_hr(r2_lambda$hr, r2_lambda$ci_low, r2_lambda$ci_high, r2_lambda$p),
+      Peak30_M2 = format_hr(r2_peak30$hr, r2_peak30$ci_low, r2_peak30$ci_high, r2_peak30$p),
+      C_index_M1 = c1$c_index,
+      C_index_M1_se = c1$se,
+      C_index_M1_CI = format_c_index(c1$c_index, c1$ci_low, c1$ci_high),
+      C_index_M1_n = c1$n,
+      C_index_M2 = c2$c_index,
+      C_index_M2_se = c2$se,
+      C_index_M2_CI = format_c_index(c2$c_index, c2$ci_low, c2$ci_high),
+      C_index_M2_n = c2$n,
+      C_index_M2_minus_M1_p = c_m2_vs_m1$p,
+      C_index_M2_minus_M1_z = c_m2_vs_m1$z,
+      C_index_M2_minus_M1_compareC_n = c_m2_vs_m1$n
+    ),
+    m1 = m1,
+    m2 = m2,
+    f1 = f1,
+    f2 = f2
   )
 })
 
-results_df <- bind_rows(results_list)
+results_df <- bind_rows(map(model_results, "result"))
+cindex_df <- results_df %>%
+  select(Method, starts_with("C_index")) %>%
+  mutate(
+    C_index_M2_minus_M1 = C_index_M2 - C_index_M1
+  )
+
+paired_method_comparisons <- list(
+  list(unmarked = "MLE (unmarked)", marked = "MLE (marked)", pair = "MLE: marked - unmarked"),
+  list(unmarked = "Dispersion (raw)", marked = "Dispersion (marks)", pair = "Dispersion: marks - raw"),
+  list(unmarked = "Dispersion (adj)", marked = "Dispersion (adj+marks)", pair = "Dispersion: adj+marks - adj")
+)
+
+paired_cindex_df <- bind_rows(lapply(paired_method_comparisons, function(pair_spec) {
+  unmarked_index <- which(results_df$Method == pair_spec$unmarked)
+  marked_index <- which(results_df$Method == pair_spec$marked)
+  
+  m1_compare <- compare_c_index(
+    model_results[[marked_index]]$m1, model_results[[marked_index]]$f1,
+    model_results[[unmarked_index]]$m1, model_results[[unmarked_index]]$f1,
+    analysis_df
+  )
+  m2_compare <- compare_c_index(
+    model_results[[marked_index]]$m2, model_results[[marked_index]]$f2,
+    model_results[[unmarked_index]]$m2, model_results[[unmarked_index]]$f2,
+    analysis_df
+  )
+  
+  data.frame(
+    Pair = pair_spec$pair,
+    Unmarked_Method = pair_spec$unmarked,
+    Marked_Method = pair_spec$marked,
+    M1_C_index_unmarked = results_df$C_index_M1[unmarked_index],
+    M1_C_index_marked = results_df$C_index_M1[marked_index],
+    M1_marked_minus_unmarked = m1_compare$diff,
+    M1_z = m1_compare$z,
+    M1_p = m1_compare$p,
+    M1_compareC_n = m1_compare$n,
+    M2_C_index_unmarked = results_df$C_index_M2[unmarked_index],
+    M2_C_index_marked = results_df$C_index_M2[marked_index],
+    M2_marked_minus_unmarked = m2_compare$diff,
+    M2_z = m2_compare$z,
+    M2_p = m2_compare$p,
+    M2_compareC_n = m2_compare$n
+  )
+}))
+
+results_df <- results_df %>%
+  select(-starts_with("C_index"))
 
 # Print combined table
 cat("\n=== Combined Table: Activity Metrics and Mortality ===\n")
 cat("Model 1: Adjusted for age, gender, race, wear time\n")
 cat("Model 2: + Peak30, BMI, smoking, alcohol, education, mobility, comorbidities\n")
 cat("* p<0.05, ** p<0.01, *** p<0.001\n\n")
-
 print(results_df, row.names = FALSE)
+
+cat("\n=== C-index and Differences ===\n")
+cat("C-index calculated from each Cox model linear predictor; M2-M1 p-values are from compareC.\n\n")
+print(cindex_df, row.names = FALSE)
+
+cat("\n=== Paired Marked vs Unmarked C-index Comparisons ===\n")
+cat("Positive differences mean the marked model has a higher C-index than its paired unmarked model.\n\n")
+print(paired_cindex_df, row.names = FALSE)
+
 write.csv(results_df, "Output/mortality/hip_results_df.csv", row.names = FALSE)
 write.csv(results_df, "Output/mortality/wrist_results_df.csv", row.names = FALSE)
+write.csv(cindex_df, "Output/mortality/hip_cindex_df.csv", row.names = FALSE)
+write.csv(cindex_df, "Output/mortality/wrist_cindex_df.csv", row.names = FALSE)
+write.csv(paired_cindex_df, "Output/mortality/hip_paired_cindex_df.csv", row.names = FALSE)
+write.csv(paired_cindex_df, "Output/mortality/wrist_paired_cindex_df.csv", row.names = FALSE)
 
 #### 4 Visualizations ####
 par(mfrow = c(1, 3))                           
@@ -397,4 +543,3 @@ night_table <- data.frame(
 print(night_table, row.names = FALSE)
 write.csv(night_table, "Output/mortality/hip_night_table.csv", row.names = FALSE)
 write.csv(night_table, "Output/mortality/wrist_night_table.csv", row.names = FALSE)
-
