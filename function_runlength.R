@@ -383,6 +383,7 @@ clean_events_spikes <- function(events_data, activity_cutoffs = c("hip", "wrist"
     n <- length(values)
     freq <- floor(n / 2)
     ts_values <- ts(values, frequency = freq)
+    # ts_values <- ts(values, frequency = 1)
 
     tryCatch({
       fit <- forecast::tsoutliers(ts_values)
