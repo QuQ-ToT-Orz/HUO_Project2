@@ -88,6 +88,10 @@ data_hip <- data_hip %>%
     left_join(night_metrics_hip %>% mutate(consolidated_sleep_days = consolidated_sleep_days * 7), by = "SEQN")
 
 #### 2. Prepare Data for Summary ####
+digits_spec <- list(
+  all_continuous()  ~ 1,
+  all_categorical() ~ c(0, 1)   # n integer, % one decimal
+)
 # Select the relevant columns for the demographic table
 hip_summary_data <- data_hip %>%
     select(
@@ -191,7 +195,8 @@ hip_table <- hip_summary_data %>%
             all_continuous() ~ "{mean} ({sd})",
             all_categorical() ~ "{n} ({p}%)"
         ),
-        missing = "no"
+        missing = "no",
+        digits = digits_spec
     )
 
 hip_table
@@ -231,7 +236,8 @@ wrist_table <- wrist_summary_data %>%
             all_continuous() ~ "{mean} ({sd})",
             all_categorical() ~ "{n} ({p}%)"
         ),
-        missing = "no"
+        missing = "no",
+        digits = digits_spec
     ) %>%
     modify_caption("Table 1b. Demographic Summary for Wrist-Worn Accelerometer Cohort (2011-2014)")
 wrist_table
